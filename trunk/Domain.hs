@@ -1,0 +1,304 @@
+module Domain where
+import Data.List
+import Data.Map
+import Data.Maybe
+
+-------------------------------------------------------------------------------
+-- TIME
+-------------------------------------------------------------------------------
+-- TIME
+data Day = Mon|Tue|Wed|Thu|Fri|Sat|Sun deriving (Show, Enum)
+next day = case day of
+	Sun -> Mon
+	_ -> succ day
+	
+addDay day n = toEnum $ mod (fromEnum day + n) 7
+
+data Time = Time Int deriving (Show, Eq, Ord)
+fromHourMinute h m 
+	| h < 0 || h >= 24 = error "invalid hour"
+	| m < 0 || m >= 60 = error "invalid minute"
+	| otherwise = Time (h * 60 + m)
+
+toHourMinute time = (getHours time, getMinutes time)
+
+getHours (Time total) = total `div` 60  
+getMinutes (Time total) = total `mod` 60
+addMinutesTime (Time total) minutes = Time ((total + minutes) `mod` (60*24))
+	
+-- DATETIME
+data Datetime = Datetime Day Time deriving (Show)
+addMinutes datetime minutes = fromMinutes (toMinutes datetime + minutes)	
+toMinutes (Datetime day time) = fromEnum day * 24 * 60 + (getHours time * 60) + (getMinutes time)
+fromMinutes minutes = Datetime (toEnum dayTime) (Time hmTime)
+	where
+		dayTime = mod (div minutes (24 * 60)) 7
+		hmTime = mod minutes (24 * 60)
+		
+elapsedMinutesFromTo from to
+	| minutesFrom > minutesTo = weekMinutes - diff
+	| otherwise = diff
+	where
+		minutesFrom = toMinutes from
+		minutesTo = toMinutes to
+		diff = abs (minutesTo - minutesFrom)
+		weekMinutes = 7 * 24 * 60	
+		
+earliest start traveltime initialDeparture days = earliestTime
+	where
+		times = [let departure = addMinutes (Datetime day initialDeparture) traveltime in (departure, elapsedMinutesFromTo start departure) | day <- days]
+		earliestTime = minimumBy earliestComparator times
+		earliestComparator left right = compare (snd left) (snd right)
+		
+-------------------------------------------------------------------------------
+-- TIMETABLE
+-------------------------------------------------------------------------------
+-- STOP
+type StopId = Int
+data Stop = Stop StopId String deriving (Show, Eq)
+
+getStopId :: Stop -> StopId
+getStopId (Stop stopId _) = stopId
+
+getStopName :: Stop -> String
+getStopName (Stop _ stopName) = stopName
+
+-- ROUTE
+type RouteId = Int
+data Route = Route RouteId String [StopId] deriving (Show)
+getRouteId :: Route -> RouteId
+getRouteId (Route routeId _ _) = routeId
+
+getRouteStops  :: Route -> [StopId]
+getRouteStops (Route _ _ stops) = stops
+
+-- COURSE
+data CourseStop = CourseStop StopId Int
+
+getCourseStopId :: CourseStop -> StopId
+getCourseStopId (CourseStop stopId _) = stopId
+
+getTravelTime :: CourseStop -> Int
+getTravelTime (CourseStop _ travelTime) = travelTime
+
+type CourseId = Int
+data Course = Course CourseId RouteId Time [Day] [CourseStop] 
+getCourseId (Course courseId _ _ _ _) = courseId
+
+getCourseRouteId :: Course -> RouteId
+getCourseRouteId (Course _ routeId _ _ _) = routeId
+
+getCourseDepartureTime :: Course -> Time
+getCourseDepartureTime (Course _ _ time _ _) = time
+
+getCourseDays :: Course -> [Day]
+getCourseDays (Course _ _ _ days _) = days
+
+getCourseStops :: Course -> [CourseStop]
+getCourseStops (Course _ _ _ _ stops) = stops
+
+getCourseStop :: Course -> StopId -> CourseStop
+getCourseStop course stopId
+	| isNothing maybeStop = error ("no stop " ++ show stopId ++ "in course " ++ show courseId)
+	| otherwise = fromJust maybeStop
+	where
+		stops = getCourseStops course
+		courseId = getCourseId course
+		maybeStop = find (\stop -> getCourseStopId stop == stopId) stops
+
+getCourseStopsAfter :: Course -> StopId -> [CourseStop]
+getCourseStopsAfter course stopId = dropWhile (\x -> getCourseStopId x == stopId) $ dropWhile (\x -> getCourseStopId x /= stopId) $  getCourseStops course
+
+data Timetable = Timetable [Course] [Route] [Stop]
+getTimetableCourses :: Timetable -> [Course]
+getTimetableCourses (Timetable courses _ _) = courses
+
+getTimetableRoutes :: Timetable -> [Route]
+getTimetableRoutes (Timetable _ routes _) = routes
+
+getTimetableStops :: Timetable -> [Stop]
+getTimetableStops (Timetable _ _ stops) = stops
+
+getTimetableStopsCount :: Timetable -> Int
+getTimetableStopsCount (Timetable _ _ stops) = length stops
+
+isValidStop timatable stopId = isJust $ find (\s -> getStopId s == stopId) $ getTimetableStops timatable
+
+-- helper structure for next course
+-- NextCourse 
+--		Course - reference to course
+--		Datetime - departure time
+--		Int - waiting time in minutes
+data NextCourse = NextCourse Course Datetime Int
+getNextCourseCourse :: NextCourse -> Course
+getNextCourseCourse (NextCourse course _ _) = course
+
+getNextCourseDepartureTime :: NextCourse -> Datetime
+getNextCourseDepartureTime (NextCourse _ departureTime _) = departureTime
+
+getNextCourseWaitingTime :: NextCourse -> Int
+getNextCourseWaitingTime (NextCourse _ _ waitingTime) = waitingTime
+
+fromTimetable :: Course -> Datetime -> StopId -> NextCourse
+fromTimetable course startDatetime stopId = NextCourse course departureTime waitingTime 
+	where
+		courseStop = getCourseStop course stopId
+		earliestPair = earliest startDatetime (getTravelTime courseStop) (getCourseDepartureTime course) (getCourseDays course)
+		departureTime = fst earliestPair
+		waitingTime = snd earliestPair
+
+pickBetterNextCourse :: NextCourse -> NextCourse -> NextCourse
+pickBetterNextCourse left right = if getNextCourseWaitingTime left <= getNextCourseWaitingTime right then left else right
+
+findNextCourse :: Timetable -> RouteId -> StopId -> Datetime -> Maybe NextCourse
+findNextCourse timetable routeId stopId startTime = recursiveFindNextCourse (getTimetableCourses timetable) Nothing
+	where
+		recursiveFindNextCourse [] best = best
+		recursiveFindNextCourse (course:rest) best
+			| getCourseRouteId course /= routeId = recursiveFindNextCourse rest best
+			| isNothing best = recursiveFindNextCourse rest (Just nextCourse)
+			| otherwise = recursiveFindNextCourse rest (Just newBest)
+			where 
+				nextCourse = fromTimetable course startTime stopId 
+				newBest = pickBetterNextCourse (fromJust best) nextCourse
+			
+-------------------------------------------------------------------------------
+-- TRAVEL ROUTE
+-------------------------------------------------------------------------------
+-- OPTIONS
+transferTimeMinutes = 5
+
+-- TravelLeg -  helper structure denoting visitable stop and travel history
+--		StopId
+--		Int - travel time
+--		Int - stops count
+--		Datetime - arrival date/time
+--		TravelLeg -- previous stop								  
+data TravelLeg = TravelLeg StopId Int Int Datetime Course TravelLeg | InitialTravelLeg StopId Datetime
+getLegStopId :: TravelLeg -> StopId
+getLegStopId (TravelLeg stopId _ _ _ _ _) = stopId
+getLegStopId (InitialTravelLeg stopId _) = stopId
+
+getLegTravelTime :: TravelLeg -> Int
+getLegTravelTime (TravelLeg _ travelTime _ _ _ _) = travelTime
+getLegTravelTime (InitialTravelLeg _ _) = 0
+
+getLegStopsCount :: TravelLeg -> Int
+getLegStopsCount (TravelLeg _ _ stops _ _ _) = stops
+getLegStopsCount (InitialTravelLeg _ _) = 0
+
+getLegArrivalTime :: TravelLeg -> Datetime
+getLegArrivalTime (TravelLeg _ _ _ arrivalTime _ _) = arrivalTime
+getLegArrivalTime (InitialTravelLeg _ arrivalTime) = arrivalTime
+
+getLegCourse :: TravelLeg -> Maybe Course
+getLegCourse (TravelLeg _ _ _ _ course _) = Just course
+getLegCourse (InitialTravelLeg _ _) = Nothing
+
+getLegPreviousLeg :: TravelLeg -> Maybe TravelLeg
+getLegPreviousLeg (TravelLeg _ _ _ _ _ previous) = Just previous
+getLegPreviousLeg (InitialTravelLeg _ _) = Nothing
+
+-- function that compares two legs (assuming they both have same stopId)
+-- returns Maybe Ordering, because legs can be uncompareable (longer with fewer stops or shorter with more stops) 
+legCompare left right
+	| lTravelTime == rTravelTime && lStopsCount == rStopsCount = Just EQ
+	| lTravelTime <= rTravelTime && lStopsCount <= rStopsCount = Just LT
+	| lTravelTime >= rTravelTime && lStopsCount >= rStopsCount = Just GT
+	| otherwise = Nothing
+	where
+		lStopsCount = getLegStopsCount left
+		lTravelTime = getLegTravelTime left
+		rStopsCount = getLegStopsCount right
+		rTravelTime = getLegTravelTime right
+
+
+-- TravelRoute - route of travel. References last travel leg with complete travel history
+-- DestinationUnreachable - route doesnt exist
+-- TooFewStops - couldnt find any route within given stop limit
+data TravelRoute = TravelRoute TravelLeg | DestinationUnreachable | TooFewStops
+
+type FeasibilityMap = Map StopId [TravelLeg]
+
+-- facade function implementing validation and starting recursive procedure
+findQuickestRoute :: Timetable -> StopId -> StopId -> Datetime -> Int -> TravelRoute
+findQuickestRoute timetable beginStopId endStopId travelStartDatetime maxStops
+	| invalidBegin = error "invalid starting stop"
+	| invalidEnd = error "invalid ending stop"
+	| invalidStops = error "invalid maxStops"
+	| beginStopId == endStopId = error "begin must be different than end"
+	| otherwise = recursiveFindQuickestRoute stopQueue feasibilityMap timetable endStopId maxStops
+	where
+		invalidBegin = not $ isValidStop timetable beginStopId
+		invalidEnd = not $ isValidStop timetable endStopId
+		invalidStops = maxStops <= 0
+		initialStop = InitialTravelLeg beginStopId travelStartDatetime
+		stopQueue = [initialStop]
+		feasibilityMap = singleton 1 [initialStop]
+	
+-- recursive worker function
+recursiveFindQuickestRoute :: [TravelLeg] -> FeasibilityMap -> Timetable -> StopId -> Int -> TravelRoute
+recursiveFindQuickestRoute [] _ _ _ _ = DestinationUnreachable
+recursiveFindQuickestRoute (next:rest) feasibilityMap timetable endStopId maxStops
+	| getLegStopsCount next > maxStops = TooFewStops
+	| getLegStopId next == endStopId = TravelRoute next
+	| otherwise = recursiveFindQuickestRoute updatedStopQueue updatedFeasibilityMap timetable endStopId maxStops
+	where
+		temp = findNextLegs next feasibilityMap timetable
+		rechableLegs = fst temp
+		updatedFeasibilityMap = snd temp
+		updatedStopQueue = insertElementsIntoPriorityQueue rest rechableLegs isLegPriorityHigher
+		isLegPriorityHigher candidate leg = fromMaybe GT (legCompare candidate leg) /= GT
+		
+-- helper function
+-- finds all next route legs from given leg according to timetable 
+-- with exception of infeasible legs (longer than previously visited)
+-- TODO: update feasibilityMap
+findNextLegs :: TravelLeg -> FeasibilityMap -> Timetable -> ([TravelLeg], FeasibilityMap)
+findNextLegs leg feasibilityMap timetable = (nextLegs, feasibilityMap)
+	where
+		stopId = getLegStopId leg
+		arrivalTime = getLegArrivalTime leg
+		transferTime = addMinutes arrivalTime transferTimeMinutes
+		initialTravelTime = getLegTravelTime leg
+		stopsCount = getLegStopsCount leg
+		nextLegs = getAllReachableLegs stopId transferTime (getTimetableRoutes timetable)
+		getAllReachableLegs stopId startTime [] = []
+		getAllReachableLegs stopId startTime (x:xs)
+			| routeDoesntGoThroughThatStop || isNothing maybeNextCourse = getAllReachableLegs stopId startTime xs
+			| otherwise = feasibleLegs ++ (getAllReachableLegs stopId startTime xs)
+			where
+				routeDoesntGoThroughThatStop = not $ any (== stopId) (getRouteStops x)
+				maybeNextCourse = findNextCourse timetable (getRouteId x) stopId startTime
+				nextCourse = fromJust maybeNextCourse
+				rawCourse = getNextCourseCourse nextCourse
+				stopTravelTime = getTravelTime (getCourseStop rawCourse stopId)
+				departureTime = getNextCourseDepartureTime nextCourse
+				waitingTime = getNextCourseWaitingTime nextCourse
+				legs = produceLegs (getCourseStopsAfter rawCourse stopId)
+				feasibleLegs = filterInfeasible legs feasibilityMap
+				filterInfeasible legs feasibilityMap = legs -- TODO: finish this
+				produceLegs stops = Data.List.map stopToLeg stops
+					where
+						stopToLeg s = TravelLeg nextStopId nextStopsCount nextTravelTime nextArrivaltime rawCourse leg
+							where
+								travelTime = getTravelTime s - stopTravelTime
+								nextStopId = getCourseStopId s
+								nextStopsCount = stopsCount + 1
+								nextTravelTime = initialTravelTime + waitingTime + travelTime
+								nextArrivaltime = addMinutes departureTime travelTime
+		
+--getAllStopRoutes :: Timetable -> StopId -> [Route]
+--getAllStopRoutes timetable stopId = filter (routeContainsStop stopId) 
+--	where
+--		routeContainsStop stopId route = any 
+
+-- helper function
+-- adds array of elements into priority queue, preserving order resulting from priority
+insertElementsIntoPriorityQueue :: [a] -> [a] -> (a -> a -> Bool) -> [a]
+insertElementsIntoPriorityQueue queue [] _ = queue
+insertElementsIntoPriorityQueue queue (x:xs) f = insertElementsIntoPriorityQueue (insertIntoPriorityQueue queue x f) xs f
+insertIntoPriorityQueue [] element _ = [element]
+insertIntoPriorityQueue (x:xs) element f
+	| f element x = element:x:xs
+	| otherwise = x:insertIntoPriorityQueue xs element f
