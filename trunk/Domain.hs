@@ -73,7 +73,7 @@ getRouteStops  :: Route -> [StopId]
 getRouteStops (Route _ _ stops) = stops
 
 -- COURSE
-data CourseStop = CourseStop StopId Int
+data CourseStop = CourseStop StopId Int deriving (Show)
 
 getCourseStopId :: CourseStop -> StopId
 getCourseStopId (CourseStop stopId _) = stopId
@@ -82,7 +82,7 @@ getTravelTime :: CourseStop -> Int
 getTravelTime (CourseStop _ travelTime) = travelTime
 
 type CourseId = Int
-data Course = Course CourseId RouteId Time [Day] [CourseStop] 
+data Course = Course CourseId RouteId Time [Day] [CourseStop]  deriving (Show)
 getCourseId (Course courseId _ _ _ _) = courseId
 
 getCourseRouteId :: Course -> RouteId
@@ -109,7 +109,7 @@ getCourseStop course stopId
 getCourseStopsAfter :: Course -> StopId -> [CourseStop]
 getCourseStopsAfter course stopId = dropWhile (\x -> getCourseStopId x == stopId) $ dropWhile (\x -> getCourseStopId x /= stopId) $  getCourseStops course
 
-data Timetable = Timetable [Course] [Route] [Stop]
+data Timetable = Timetable [Course] [Route] [Stop]  deriving (Show)
 getTimetableCourses :: Timetable -> [Course]
 getTimetableCourses (Timetable courses _ _) = courses
 
@@ -174,7 +174,7 @@ transferTimeMinutes = 5
 --		Int - stops count
 --		Datetime - arrival date/time
 --		TravelLeg -- previous stop								  
-data TravelLeg = TravelLeg StopId Int Int Datetime Course TravelLeg | InitialTravelLeg StopId Datetime
+data TravelLeg = TravelLeg StopId Int Int Datetime Course TravelLeg | InitialTravelLeg StopId Datetime  deriving (Show)
 getLegStopId :: TravelLeg -> StopId
 getLegStopId (TravelLeg stopId _ _ _ _ _) = stopId
 getLegStopId (InitialTravelLeg stopId _) = stopId
@@ -216,7 +216,7 @@ legCompare left right
 -- TravelRoute - route of travel. References last travel leg with complete travel history
 -- DestinationUnreachable - route doesnt exist
 -- TooFewStops - couldnt find any route within given stop limit
-data TravelRoute = TravelRoute TravelLeg | DestinationUnreachable | TooFewStops
+data TravelRoute = TravelRoute TravelLeg | DestinationUnreachable | TooFewStops deriving (Show)
 
 type FeasibilityMap = Map StopId [TravelLeg]
 
