@@ -3,17 +3,9 @@ import System.Console.ANSI
 import DummyData
 import Domain
 import Data.Char
+import Users
 
 
-mainMenu = do
-	menu [
-		(Choice '1' "Znajdz polaczenie" (Action (znajdzPolaczenie))),
-		(Choice '2' "Dodaj stacje" (Action (dummyAction "lal"))),
-		(Choice '3' "Usun stacje" (Action (dummyAction "lal"))),
-		(Choice '4' "Dodaj polaczenie" (Action (dummyAction "lal"))),
-		(Choice '5' "Usun polaczenie" (Action (dummyAction "lal"))),
-		(Choice 'q' "Koniec" ExitAction)
-		]
 		
 		
 -------------------------------------------------------------------------------
@@ -114,6 +106,27 @@ stacje ((Stop sid name):xs) = (Choice (chr(sid + 96)) name (Action (getChoiceVal
 
 stacjeLst = [s1,s2,s3,s4]
 
+-- Menu glowne - dla kazdego uzytkownika
+mainMenu = do
+	menu [
+		(Choice '1' "Znajdz polaczenie" (Action (znajdzPolaczenie))),
+		(Choice '2' "Administracja" (Action (administracja))),
+		(Choice 'q' "Koniec" ExitAction)
+		]
+		
+
+adminMenu = do
+	putStrLn "Logowanie pomyslne"
+	menu [
+		(Choice '1' "Znajdz polaczenie" (Action (znajdzPolaczenie))),
+		(Choice '2' "Dodaj stacje" (Action (uiDodajStacje))),
+		(Choice '3' "Usun stacje" (Action (uiUsunStacje))),
+		(Choice '4' "Dodaj polaczenie" (Action (uiDodajPolaczenie))),
+		(Choice '5' "Usun polaczenie" (Action (uiUsunPolaczenie))),
+		(Choice 'q' "Koniec" ExitAction)	
+		]
+	return ()
+		
 -- Lista dni tygodnia do menu. Niestety, nie udalo mi sie tego zrobic przez wyciagniecie z Enum
 dniTygodnia = [(Choice '1' "Poniedzialek" (Action (getChoiceValue  "1"))),
 			   (Choice '2' "Wtorek" (Action (getChoiceValue  "2"))),
@@ -134,6 +147,7 @@ wyswietlTrase (TravelRoute (TravelLeg stopId _ _ _ _ _)) = do
 		putStrLn "Znaleziono trase"
 		
 		
+		
 znajdzPolaczenie = do
 		putStrLn "Wybierz stacje poczatkowa:"
 		stop1 <- menu (stacje(stacjeLst))		
@@ -148,5 +162,41 @@ znajdzPolaczenie = do
 		wyswietlTrase(findQuickestRoute tt1 (ord(head(stop1))) (ord(head(stop2))) (Datetime (toEnum(ord(head(rDate))- 49)) (Time (ord(head(rTime))))) (ord(head(maxStops))))
 		return ""
 		mainMenu
-
+				
+administracja = do
+		putStrLn "Podaj nazwe uzytkownika:"
+		login <- getStyledLine choiceStyle
+		putStrLn "Podaj haslo"
+		pass <- getStyledLine choiceStyle
+		ok <- Users.login (Users.User login pass)
+		if (ok == True) then 						
+						adminMenu					
+		else
+						putStrLn "Bledny login lub haslo"
+		return "Logowanie pomyslne"
+		mainMenu
 		
+		
+uiDodajStacje = do
+	return ""
+	
+uiUsunStacje = do
+	putStrLn "Wybierz stacje do usuniecia:"
+	stacja <- menu (stacje(stacjeLst))	
+	let stacjeLst = usunStacje (stacjeLst (ord(head(stacja))))
+	return ""
+	
+
+
+	
+	
+usunStacje [] _ = []
+usunStacje ((Stop id name):xs) sid = if(sid == id) then  ((usunStacje xs sid))
+												   else  (Stop id name) : (usunStacje xs sid)
+	
+	
+uiDodajPolaczenie = do
+	return ""
+	
+uiUsunPolaczenie = do
+	return ""
