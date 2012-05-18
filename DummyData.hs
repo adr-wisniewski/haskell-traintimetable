@@ -1,16 +1,50 @@
 module DummyData where
 import Domain
-s1 = Stop 1 "Gdansk"
-s2 = Stop 2 "Warszawa"
-s3 = Stop 3 "Poznan"
-s4 = Stop 4 "Wroclaw"
-r1 = Route 1 "Jan Kiepura" [1, 2, 3]
-cs1 = CourseStop 1 11
-cs2 = CourseStop 2 12
-cs3 = CourseStop 3 13
-cs4 = CourseStop 4 15
-t1 = Time 10
-c1 = Course 1 1 t1 [Mon,Tue,Wed,Thu,Fri,Sat,Sun] [cs1,cs2,cs3]
-tt1 = Timetable [c1] [r1] [s1,s2,s3,s4]
-dt1 = Datetime Mon t1
 
+-- Stacje
+stacje = [
+		(Stop 1 "Gdansk"),
+		(Stop 2 "Warszawa"),
+		(Stop 3 "Poznan"),
+		(Stop 4 "Wroclaw")
+	]
+
+-- Trasy
+trasy = [
+		(Route 1 "Jan Kiepura" [1, 2, 3]),
+		(Route 2 "Stefan Batory" [1, 3, 4])
+	]
+
+-- Jan Kiepura
+janKiepuraStacje = [
+		(CourseStop 1 0), 
+		(CourseStop 2 60), 
+		(CourseStop 3 120)
+	]
+	
+janKiepuraKursy = [
+		(Course 1 1 (fromHourMinute 09 00) [Tue,Wed,Fri,Sat,Sun] janKiepuraStacje),
+		(Course 2 1 (fromHourMinute 15 00) [Tue,Wed,Fri,Sat,Sun] janKiepuraStacje)
+	]
+
+-- Stefan Batory
+stefanBatoryStacje = [
+		(CourseStop 1 0), 
+		(CourseStop 3 15), 
+		(CourseStop 4 30)
+	]
+	
+stefanBatoryKursy = [
+		(Course 3 2 (fromHourMinute 15 30) [Sat,Sun] stefanBatoryStacje)
+	]
+
+
+
+-- Rozklad
+kursy = janKiepuraKursy ++ stefanBatoryKursy
+rozklad = Timetable kursy trasy stacje
+
+
+-- Testy
+dt1 = Datetime Mon (fromHourMinute 14 30)
+test = findQuickestRoute rozklad 1 2 dt1 1
