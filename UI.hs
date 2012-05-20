@@ -63,7 +63,7 @@ getStyledNumber style = do
 -------------------------------------------------------------------------------
 -- MENU COMPONENT
 -------------------------------------------------------------------------------
-data Action = AdminAction (Timetable) | Action (IO String) | ExitAction 
+data Action = Action (IO DB) | SimpleAction (IO [Char]) | ExitAction 
 data Choice = Choice Char [Char] Action | InvalidChoice
 	
 menu :: [Choice] -> IO String
@@ -109,41 +109,41 @@ getChoiceValue sid = do
 	return sid
 
 -- Funkcja zamieniajaca liste stacji na menu
-stacjeMenu :: [Stop] -> [Choice]
-stacjeMenu [] = []
-stacjeMenu ((Stop sid name):xs) = (Choice (chr(sid + 96)) name (Action (getChoiceValue [(chr(sid))]))) : (stacjeMenu xs)
+stacjeMenu :: DB -> [Stop] -> [Choice]
+stacjeMenu _ [] = []
+stacjeMenu context ((Stop sid name):xs)  = (Choice (chr(sid + 96)) name (SimpleAction (getChoiceValue [(chr(sid))]))) : (stacjeMenu context xs)
 
 
 
 -- Menu glowne - dla kazdego uzytkownika
-mainMenu = do
+mainMenu context = do
 	menu [
-		(Choice '1' "Znajdz polaczenie" (Action (znajdzPolaczenie))),
-		(Choice '2' "Administracja" (Action (administracja))),
+		(Choice '1' "Znajdz polaczenie" (Action (znajdzPolaczenie context))),
+		(Choice '2' "Administracja" (Action (administracja context))),
 		(Choice 'q' "Koniec" ExitAction)
 		]
-		
+	return context
 
-adminMenu = do
+adminMenu context = do
 	putStrLn "Logowanie pomyslne"
 	menu [
-		(Choice '1' "Znajdz polaczenie" (Action (znajdzPolaczenie))),
-		(Choice '2' "Dodaj stacje" (Action (uiDodajStacje))),
-		(Choice '3' "Usun stacje" (Action (uiUsunStacje))),
-		(Choice '4' "Dodaj polaczenie" (Action (uiDodajPolaczenie))),
-		(Choice '5' "Usun polaczenie" (Action (uiUsunPolaczenie))),
+		(Choice '1' "Znajdz polaczenie" (Action (znajdzPolaczenie context))),
+		(Choice '2' "Dodaj stacje" (Action (uiDodajStacje context))),
+		(Choice '3' "Usun stacje" (Action (uiUsunStacje context))),
+		(Choice '4' "Dodaj polaczenie" (Action (uiDodajPolaczenie context))),
+		(Choice '5' "Usun polaczenie" (Action (uiUsunPolaczenie context))),
 		(Choice 'q' "Koniec" ExitAction)	
 		]
 	return ()
 		
 -- Lista dni tygodnia do menu. Niestety, nie udalo mi sie tego zrobic przez wyciagniecie z Enum
-dniTygodnia = [(Choice '1' "Poniedzialek" (Action (getChoiceValue  "1"))),
-			   (Choice '2' "Wtorek" (Action (getChoiceValue  "2"))),
-			   (Choice '3' "Sroda" (Action (getChoiceValue  "3"))),
-			   (Choice '4' "Czwartek" (Action (getChoiceValue  "4"))),
-			   (Choice '5' "Piatek" (Action (getChoiceValue  "5"))),
-			   (Choice '6' "Sobota" (Action (getChoiceValue  "6"))),
-			   (Choice '7' "Niedziela" (Action (getChoiceValue  "7")))]
+dniTygodnia  = [(Choice '1' "Poniedzialek" (SimpleAction (getChoiceValue  "1" ))),
+			   (Choice '2' "Wtorek" (SimpleAction  (getChoiceValue  "2"))),
+			   (Choice '3' "Sroda" (SimpleAction  (getChoiceValue  "3"))),
+			   (Choice '4' "Czwartek" (SimpleAction  (getChoiceValue  "4"))),
+			   (Choice '5' "Piatek" (SimpleAction  (getChoiceValue  "5"))),
+			   (Choice '6' "Sobota" (SimpleAction  (getChoiceValue  "6"))),
+			   (Choice '7' "Niedziela" (SimpleAction  (getChoiceValue  "7")))]
 
 
 -- Funkcja wyswietlajaca wynik dzialania findQuickestRoute
@@ -159,12 +159,12 @@ wyswietlTrase _ = do
 		
 		
 		
-znajdzPolaczenie = do
+znajdzPolaczenie context = do
 		putStrLn "Wybierz stacje poczatkowa:"
-		stop1 <- menu (stacjeMenu(stacje))	
+		stop1 <- menu (stacjeMenu context stacje)	
 		let stop1n = read stop1::Int		
 		putStrLn "Wybierz stacje koncowa:"
-		stop2 <- menu (stacjeMenu(stacje))
+		stop2 <- menu (stacjeMenu context stacje)
 		let stop2n = read stop2::Int
 		putStrLn "Podaj dzien wyjazdu:"
 		rDate <- menu(dniTygodnia)
@@ -173,62 +173,68 @@ znajdzPolaczenie = do
 		let godzina = fromHourMinute rTime 0
 		putStrLn "Podaj maksymalna ilosc przystankow:"
 		maxStops <- getStyledNumber choiceStyle
-		wyswietlTrase(findQuickestRoute rozklad stop1n stop2n (Datetime (toEnum(ord(head(rDate))- 49)) godzina) maxStops)
-		return ""
-		mainMenu
+		--wyswietlTrase(findQuickestRoute rozklad stop1n stop2n (Datetime (toEnum(ord(head(rDate))- 49)) godzina) maxStops)
+		mainMenu context
 				
-administracja = do
+administracja context = do
 		putStrLn "Podaj nazwe uzytkownika:"
 		login <- getStyledLine choiceStyle
 		putStrLn "Podaj haslo"
-		pass <- getStyledLine choiceStyle
+	 	pass <- getStyledLine choiceStyle
 		ok <- Users.login (Users.User login pass)
 		if (ok == True) then 						
-						adminMenu					
+			adminMenu context					
 		else
-						putStrLn "Bledny login lub haslo"
-		return "Logowanie pomyslne"
-		mainMenu
+			putStrLn "Bledny login lub haslo"
+		return context
+		--mainMenu context
 		
 		
-uiDodajStacje = do
+uiDodajStacje context = do
 	putStrLn "Podaj nazwe stacji: "
 	nazwa <- getStyledLine choiceStyle
 	let numer = sekwencja
 	let newStop = Stop sekwencja nazwa
-	let stacje = stacje ++ [newStop]
-	return ""
-	--let stacja = Stop 
 	
-uiUsunStacje = do
-	putStrLn "Wybierz stacje do usuniecia:"
-	stacja <- menu (stacjeMenu(stacje))	
-	let stacjeLst = usunStacje (stacjeLst (ord(head(stacja))))
-	--d0 :: Database.DB []
-	
-	--setStops d0 stacjeLst
-	--return Timetable(kursy trasy stacjeLst)
-	return ""
+	let tt = getTimetable context
+	let stops = getTimetableStops tt
+	let newStops = stops ++ [newStop]
+	let newContext = setTimetable context (Timetable (getTimetableCourses(tt)) (getTimetableRoutes(tt)) newStops)
+	return newContext
 
 	
-uiDodajPolaczenie = do
-	polaczenia <- uiDodajPolaczenieLoop []
-	return ""
+uiUsunStacje context = do
+	putStrLn "Wybierz stacje do usuniecia:"
+	let tt = getTimetable context
+	let stops = getTimetableStops tt
+	stop <- menu (stacjeMenu context stops)	
+	let stopN = read stop::Int
+	let newStops = usunStacje stops stopN	
+	let newContext = setTimetable context (Timetable (getTimetableCourses(tt)) (getTimetableRoutes(tt)) newStops)
+	return newContext
+
+	
+uiDodajPolaczenie context = do
+	--polaczenia <- uiDodajPolaczenieLoop []
+	let tt = getTimetable context
+	
+	return context
 	
 	
-uiDodajPolaczenieLoop wybraneStacje = do
+uiDodajPolaczenieLoop wybraneStacje context = do
 	putStrLn "Podaj stacje wchodzaca w sklad kursu, lub q, jesli koniec:"
-	stacja <- menu (stacjeMenu(stacje) ++ [(Choice 'q' "Koniec" (Action (getChoiceValue  "q")))] )
+	stacja <- menu ((stacjeMenu context stacje) ++ [(Choice 'q' "Koniec" (SimpleAction (getChoiceValue  "q")))] )
 	let stacjaN = read stacja::Int	
 	if(stacja == "q") then
 		return wybraneStacje
-	else	
-		return uiDodajPolaczenieLoop [(Stop stacjaN)] ++ wybraneStacje
+	else do
+		--temp <- (uiDodajPolaczenieLoop [(Stop stacjaN)] ) ++ IO wybraneStacje
+		return [] --temp
 	return []
 	
 	
-uiUsunPolaczenie = do
-	return ""
+uiUsunPolaczenie context = do
+	return context
 
 	
 	
