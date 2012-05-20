@@ -107,11 +107,10 @@ dummyAction text = do
 	return ""
 	
 -- Prosta funkcja zwracajaca wartosc pobrana w menu
-getChoiceValue context sid = do
+getChoiceValue sid = do
 	return sid
 
 -- Funkcja zamieniajaca liste stacji na menu
-stacjeMenu :: DB -> [Stop] -> [Choice (Action context)]
 stacjeMenu _ [] = []
 stacjeMenu context ((Stop sid name):xs)  = (Choice (chr(sid + 96)) name (Action (getChoiceValue (chr(sid))))) : (stacjeMenu context xs)
 
@@ -163,6 +162,7 @@ wyswietlTrase _ = do
 		
 znajdzPolaczenie context = do
 		putStrLn "Wybierz stacje poczatkowa:"
+		let stacje = getTimetableStops(getTimetable context)
 		stop1 <- menu (stacjeMenu context stacje)	
 		let stop1n = read stop1::Int		
 		putStrLn "Wybierz stacje koncowa:"
