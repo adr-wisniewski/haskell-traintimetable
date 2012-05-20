@@ -9,14 +9,14 @@ import Debug.Trace
 -- TIME
 -------------------------------------------------------------------------------
 -- TIME
-data Day = Mon|Tue|Wed|Thu|Fri|Sat|Sun deriving (Show, Enum)
+data Day = Mon|Tue|Wed|Thu|Fri|Sat|Sun deriving (Show, Enum, Read)
 next day = case day of
 	Sun -> Mon
 	_ -> succ day
 	
 addDay day n = toEnum $ mod (fromEnum day + n) 7
 
-data Time = Time Int deriving (Eq, Ord)
+data Time = Time Int deriving (Eq, Ord, Read)
 
 instance Show Time where
 	show time = printf "%02d:%02d" (fst hm) (snd hm)
@@ -71,7 +71,7 @@ earliest start traveltime initialDeparture days = earliestTime
 -------------------------------------------------------------------------------
 -- STOP
 type StopId = Int
-data Stop = Stop StopId String deriving (Show, Eq)
+data Stop = Stop StopId String deriving (Show, Eq, Read)
 
 getStopId :: Stop -> StopId
 getStopId (Stop stopId _) = stopId
@@ -81,7 +81,7 @@ getStopName (Stop _ stopName) = stopName
 
 -- ROUTE
 type RouteId = Int
-data Route = Route RouteId String [StopId] deriving (Show)
+data Route = Route RouteId String [StopId] deriving (Show, Read)
 getRouteId :: Route -> RouteId
 getRouteId (Route routeId _ _) = routeId
 
@@ -89,7 +89,7 @@ getRouteStops  :: Route -> [StopId]
 getRouteStops (Route _ _ stops) = stops
 
 -- COURSE
-data CourseStop = CourseStop StopId Int deriving (Show)
+data CourseStop = CourseStop StopId Int deriving (Show, Read)
 
 getCourseStopId :: CourseStop -> StopId
 getCourseStopId (CourseStop stopId _) = stopId
@@ -98,7 +98,7 @@ getTravelTime :: CourseStop -> Int
 getTravelTime (CourseStop _ travelTime) = travelTime
 
 type CourseId = Int
-data Course = Course CourseId RouteId Time [Day] [CourseStop]  deriving (Show)
+data Course = Course CourseId RouteId Time [Day] [CourseStop]  deriving (Show, Read)
 getCourseId (Course courseId _ _ _ _) = courseId
 
 getCourseRouteId :: Course -> RouteId
@@ -125,7 +125,7 @@ getCourseStop course stopId
 getCourseStopsAfter :: Course -> StopId -> [CourseStop]
 getCourseStopsAfter course stopId = dropWhile (\x -> getCourseStopId x == stopId) $ dropWhile (\x -> getCourseStopId x /= stopId) $  getCourseStops course
 
-data Timetable = Timetable [Course] [Route] [Stop] deriving (Show)
+data Timetable = Timetable [Course] [Route] [Stop] deriving (Show, Read)
 getTimetableCourses :: Timetable -> [Course]
 getTimetableCourses (Timetable courses _ _) = courses
 

@@ -63,7 +63,9 @@ getStyledNumber style = do
 -------------------------------------------------------------------------------
 -- MENU COMPONENT
 -------------------------------------------------------------------------------
-data Action = Action (IO DB) | SimpleAction (IO [Char]) | ExitAction 
+
+
+data Action = Action (IO DB) | SimpleAction (IO Char) | ExitAction 
 data Choice = Choice Char [Char] Action | InvalidChoice
 	
 menu :: [Choice] -> IO String
@@ -111,7 +113,7 @@ getChoiceValue sid = do
 -- Funkcja zamieniajaca liste stacji na menu
 stacjeMenu :: DB -> [Stop] -> [Choice]
 stacjeMenu _ [] = []
-stacjeMenu context ((Stop sid name):xs)  = (Choice (chr(sid + 96)) name (SimpleAction (getChoiceValue [(chr(sid))]))) : (stacjeMenu context xs)
+stacjeMenu context ((Stop sid name):xs)  = (Choice (chr(sid + 96)) name (SimpleAction (getChoiceValue (chr(sid))))) : (stacjeMenu context xs)
 
 
 
@@ -137,13 +139,13 @@ adminMenu context = do
 	return ()
 		
 -- Lista dni tygodnia do menu. Niestety, nie udalo mi sie tego zrobic przez wyciagniecie z Enum
-dniTygodnia  = [(Choice '1' "Poniedzialek" (SimpleAction (getChoiceValue  "1" ))),
-			   (Choice '2' "Wtorek" (SimpleAction  (getChoiceValue  "2"))),
-			   (Choice '3' "Sroda" (SimpleAction  (getChoiceValue  "3"))),
-			   (Choice '4' "Czwartek" (SimpleAction  (getChoiceValue  "4"))),
-			   (Choice '5' "Piatek" (SimpleAction  (getChoiceValue  "5"))),
-			   (Choice '6' "Sobota" (SimpleAction  (getChoiceValue  "6"))),
-			   (Choice '7' "Niedziela" (SimpleAction  (getChoiceValue  "7")))]
+dniTygodnia  = [(Choice '1' "Poniedzialek" (Action (getChoiceValue  "1" ))),
+			   (Choice '2' "Wtorek" (Action  (getChoiceValue  "2"))),
+			   (Choice '3' "Sroda" (Action  (getChoiceValue  "3"))),
+			   (Choice '4' "Czwartek" (Action  (getChoiceValue  "4"))),
+			   (Choice '5' "Piatek" (Action  (getChoiceValue  "5"))),
+			   (Choice '6' "Sobota" (Action  (getChoiceValue  "6"))),
+			   (Choice '7' "Niedziela" (Action  (getChoiceValue  "7")))]
 
 
 -- Funkcja wyswietlajaca wynik dzialania findQuickestRoute
@@ -223,7 +225,7 @@ uiDodajPolaczenie context = do
 	
 uiDodajPolaczenieLoop wybraneStacje context = do
 	putStrLn "Podaj stacje wchodzaca w sklad kursu, lub q, jesli koniec:"
-	stacja <- menu ((stacjeMenu context stacje) ++ [(Choice 'q' "Koniec" (SimpleAction (getChoiceValue  "q")))] )
+	stacja <- menu ((stacjeMenu context stacje) ++ [(Choice 'q' "Koniec" (Action (getChoiceValue  "q")))] )
 	let stacjaN = read stacja::Int	
 	if(stacja == "q") then
 		return wybraneStacje
