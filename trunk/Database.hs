@@ -17,3 +17,4 @@ instance Databases DB where
 	empty = DB []
 	setStops (DB stops) stops' = DB stops'
 	getStops (DB stops) = stops
+	

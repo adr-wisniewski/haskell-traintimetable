@@ -1,5 +1,10 @@
 module DummyData where
 import Domain
+import Database
+
+
+
+sekwencja = (length stacje) + 1
 
 -- Stacje
 stacje = [
@@ -8,6 +13,12 @@ stacje = [
 		(Stop 3 "Poznan"),
 		(Stop 4 "Wroclaw")
 	]
+	
+
+initData (DB db) = do
+		--setStops db stacje
+		return db
+
 
 -- Trasy
 trasy = [
