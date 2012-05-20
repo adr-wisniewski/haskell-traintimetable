@@ -1,20 +1,21 @@
 module Database where
 import Domain
+import DummyData
 
-data DB = DB [Stop] deriving (Show)
+data DB = DB Timetable deriving (Show)
 
 class Databases db where
 	empty :: db
-	setStops :: db -> [Stop] -> db
-	getStops :: db -> [Stop]
-	addStop :: db -> Stop -> db
-	remStop :: db -> Stop -> db
+	setTimetable :: db -> Timetable -> db
+	getTimetable :: db -> Timetable
+	addTimetable :: db -> Timetable -> db
+	remTimetable :: db -> Timetable -> db
 	
-	addStop db stop = setStops db (stop:getStops db)
-	remStop db stop = setStops db $ filter (/= stop) $ getStops db
+	--addTimetable db timetable = setTimetable db (timetable:getTimetable db)
+	--remTimetable db timetable = setTimetable db $ filter (/= timetable) $ getTimetable db
 
 instance Databases DB where
-	empty = DB []
-	setStops (DB stops) stops' = DB stops'
-	getStops (DB stops) = stops
+	empty = DB rozklad
+	setTimetable (DB timetable) timetable' = DB timetable'
+	getTimetable (DB timetable) = timetable
 	

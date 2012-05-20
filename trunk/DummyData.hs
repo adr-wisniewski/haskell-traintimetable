@@ -1,10 +1,12 @@
 module DummyData where
 import Domain
-import Database
+
 
 
 
 sekwencja = (length stacje) + 1
+
+
 
 -- Stacje
 stacje = [
@@ -15,9 +17,6 @@ stacje = [
 	]
 	
 
-initData (DB db) = do
-		--setStops db stacje
-		return db
 
 
 -- Trasy

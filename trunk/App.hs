@@ -2,10 +2,12 @@ import Database
 import Domain
 import UI
 import DummyData
-main = do
+
+context = empty::DB
+main = do	
 	initUI
 	putStrLn "Train timetable v1.00" 
-	mainMenu
+	mainMenu context
 	releaseUI
 		
 
