@@ -65,10 +65,10 @@ getStyledNumber style = do
 -------------------------------------------------------------------------------
 
 
-data Action = Action (IO DB) | SimpleAction (IO Char) | ExitAction 
-data Choice = Choice Char [Char] Action | InvalidChoice
+data Action context = Action (IO context) | ExitAction 
+data Choice context = Choice Char [Char] (Action context) | InvalidChoice
 	
-menu :: [Choice] -> IO String
+menu :: [Choice (Action context)] -> IO String
 menu choices = do
 	printChoices choices
 	putStr "Enter choice: "
@@ -107,13 +107,13 @@ dummyAction text = do
 	return ""
 	
 -- Prosta funkcja zwracajaca wartosc pobrana w menu
-getChoiceValue sid = do
+getChoiceValue context sid = do
 	return sid
 
 -- Funkcja zamieniajaca liste stacji na menu
-stacjeMenu :: DB -> [Stop] -> [Choice]
+stacjeMenu :: DB -> [Stop] -> [Choice (Action context)]
 stacjeMenu _ [] = []
-stacjeMenu context ((Stop sid name):xs)  = (Choice (chr(sid + 96)) name (SimpleAction (getChoiceValue (chr(sid))))) : (stacjeMenu context xs)
+stacjeMenu context ((Stop sid name):xs)  = (Choice (chr(sid + 96)) name (Action (getChoiceValue (chr(sid))))) : (stacjeMenu context xs)
 
 
 
