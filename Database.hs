@@ -2,7 +2,7 @@ module Database where
 import Domain
 import DummyData
 
-data DB = DB Timetable deriving (Show)
+data DB = DB Timetable deriving (Show, Read)
 
 class Databases db where
 	empty :: db
