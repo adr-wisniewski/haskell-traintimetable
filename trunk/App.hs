@@ -35,29 +35,26 @@ mainMenu context = do
 	putStrLn ""
 	putStrLn "Menu:"
 	menu [
-		(Choice '0' "Znajdz polaczenie" (Action znajdzPolaczenie context)),
-		(Choice '1' "Pokaz stacje" (Action uiPokazStacje context)),
-		(Choice '2' "Pokaz trasy" (Action uiPokazTrasy context)),
-		(Choice '3' "Pokaz kursy" (Action uiPokazKursy context)),
-		(Choice '4' "Administracja" (Action administracja context)),
+		(Choice '1' "Znajdz polaczenie" (Action znajdzPolaczenie context)),
+		(Choice '2' "Pokaz stacje" (Action uiPokazStacje context)),
+		(Choice '3' "Pokaz trasy" (Action uiPokazTrasy context)),
+		(Choice '4' "Pokaz kursy" (Action uiPokazKursy context)),
+		(Choice '5' "Administracja" (Action administracja context)),
 		(Choice 'q' "Koniec" ExitAction)
 		] context
 	return context
 
 adminMenu context = do
 	putStrLn ""
-	putStrLn "Logowanie pomyslne"
+	putStrLn "Menu administracyjne:"
 	menu [
-		(Choice '0' "Znajdz polaczenie" (Action znajdzPolaczenie context)),
-		(Choice '1' "Pokaz stacje" (Action uiPokazStacje context)),
-		(Choice '2' "Pokaz trasy" (Action uiPokazTrasy context)),
-		(Choice '3' "Pokaz kursy" (Action uiPokazKursy context)),
-		(Choice '4' "Dodaj stacje" (Action uiDodajStacje context)),
-		(Choice '5' "Usun stacje" (Action uiUsunStacje context)),
-		(Choice '6' "Dodaj trase" (Action uiDodajTrase context)),
-		(Choice '7' "Usun trase" (Action uiUsunTrase context)),
-		(Choice '8' "Usun kurs" (Action uiUsunKurs context)),
-		(Choice '9' "Dodaj kurs" (Action uiDodajKurs context)),
+
+		(Choice '1' "Dodaj stacje" (Action uiDodajStacje context)),
+		(Choice '2' "Usun stacje" (Action uiUsunStacje context)),
+		(Choice '3' "Dodaj trase" (Action uiDodajTrase context)),
+		(Choice '4' "Usun trase" (Action uiUsunTrase context)),
+		(Choice '5' "Usun kurs" (Action uiUsunKurs context)),
+		(Choice '6' "Dodaj kurs" (Action uiDodajKurs context)),
 		(Choice 'q' "Koniec" ExitAction)	
 		] context
 	return context
