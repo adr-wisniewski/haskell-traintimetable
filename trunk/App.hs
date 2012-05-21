@@ -74,6 +74,7 @@ unauthorizedMainMenu mainMenuContext = do
 		(Choice '1' "Znajdz polaczenie" (Action (znajdzPolaczenie mainMenuContext))),
 		(Choice '2' "Pokaz rozklad" (Action (uiPokazRozklad mainMenuContext))),
 		(Spacer),
+		(Choice 'p' "Wgraj przykladowy zestaw danych" (Action (sampleData mainMenuContext))),
 		(Choice 'l' "Zaloguj" (Action (login mainMenuContext))),
 		(Choice 'q' "Koniec" ExitAction)
 		]
@@ -95,6 +96,7 @@ authorizedMainMenu mainMenuContext = do
 		(Choice '9' "Dodaj kurs" (Action (akcjaDodajKurs mainMenuContext))),
 		(Choice '0' "Usuń kurs" (Action (akcjaUsunKurs mainMenuContext))),
 		(Spacer),
+		(Choice 'p' "Wgraj przykladowy zestaw danych" (Action (sampleData mainMenuContext))),
 		(Choice 'l' "Wyloguj" (Action (logout mainMenuContext))),
 		(Choice 'q' "Koniec" ExitAction)
 		]
@@ -412,6 +414,13 @@ akcjaUsunKurs context = do
 sprawdzKurs [] _ = True
 sprawdzKurs ((CourseStop sid _):xs) id = if(sid == id) then False
 											else sprawdzKurs xs id	
+	
+-------------------------------------------------------------------------------
+-- ACTIONS - ADMINISTRATION - COURSES
+-------------------------------------------------------------------------------		
+sampleData context = do
+	putStrLn "Zaladowano przykladowe dane"	
+	return (setContextTimetable context rozklad)	
 	
 -------------------------------------------------------------------------------
 -- ID GENERATION

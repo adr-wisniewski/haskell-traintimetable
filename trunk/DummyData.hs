@@ -37,17 +37,6 @@ janKiepuraKursy = [
 		(Course 1 1 (fromHourMinute 09 00) [Tue,Wed,Fri,Sat,Sun] janKiepuraStacje),
 		(Course 2 1 (fromHourMinute 15 00) [Tue,Wed,Fri,Sat,Sun] janKiepuraStacje)
 	]
-	
-janKiepuraStacje2 = [
-		(CourseStop 3 0), 
-		(CourseStop 2 60), 
-		(CourseStop 1 120)
-	]
-	
-janKiepuraKursy2 = [
-		(Course 3 2 (fromHourMinute 11 00) [Tue,Wed,Fri,Sat,Sun] janKiepuraStacje2),
-		(Course 4 2 (fromHourMinute 17 00) [Tue,Wed,Fri,Sat,Sun] janKiepuraStacje2)
-	]
 
 -- Stefan Batory
 stefanBatoryStacje = [
@@ -60,12 +49,9 @@ stefanBatoryKursy = [
 		(Course 5 3 (fromHourMinute 15 30) [Sat,Sun] stefanBatoryStacje)
 	]
 
-
-
 -- Rozklad
-kursy = janKiepuraKursy ++ stefanBatoryKursy ++ janKiepuraKursy2
+kursy = janKiepuraKursy ++ stefanBatoryKursy
 rozklad = Timetable kursy trasy stacje
-
 
 -- Testy
 dt1 = Datetime Mon (fromHourMinute 14 30)
