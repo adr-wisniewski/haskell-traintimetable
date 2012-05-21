@@ -3,15 +3,14 @@ import Domain
 import UI
 import DummyData
 
-emp = empty::DB
-context = setTimetable empty rozklad
+
 main = do	
 
 	--context <- loadContext "timetable.dat"
 	initUI
 	putStrLn "Train timetable v1.00" 
-	let context2 = getDb context
-	mainMenu context2
+	
+	mainMenu rozklad
 --	writeContext context2 "timetable.dat"
 	releaseUI
 		
