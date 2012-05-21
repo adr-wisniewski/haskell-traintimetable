@@ -190,12 +190,12 @@ znajdzKursy ((CourseStop sid t):xs) id  = if(sid == id) then True
 	
 znajdzPolaczenie context = do
 		let timetable = getContextTimetable context
-		putStrLn "Wybierz stacje poczatkowa:"
 		let stacje = getTimetableStops timetable
 		if (null stacje)  then do
 			putStrLn "W systemie nie ma zadnych stacji"
 			return context
 		else do			
+			putStrLn "Wybierz stacje poczatkowa:"
 			printStops stacje
 			stop1n <- pobierzNumerStacji stacje
 			putStrLn "Wybierz stacje koncowa:"
