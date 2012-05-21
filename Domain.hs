@@ -111,12 +111,6 @@ getRouteNameById id ((Route rid name _):routes) =
 -- COURSE
 data CourseStop = CourseStop StopId Int deriving (Show, Read)
 
-
-
-		
-
-
-
 getCourseStopId :: CourseStop -> StopId
 getCourseStopId (CourseStop stopId _) = stopId
 
@@ -151,6 +145,7 @@ getCourseStop course stopId
 getCourseStopsAfter :: Course -> StopId -> [CourseStop]
 getCourseStopsAfter course stopId = dropWhile (\x -> getCourseStopId x == stopId) $ dropWhile (\x -> getCourseStopId x /= stopId) $  getCourseStops course
 
+-- Timetable
 data Timetable = Timetable [Course] [Route] [Stop] deriving (Show, Read)
 
 emptyTimetable = Timetable [] [] []
@@ -176,7 +171,12 @@ setTimetableRoutes (Timetable courses _ stops) routes = (Timetable courses route
 setTimetableStops :: Timetable -> [Stop] -> Timetable
 setTimetableStops (Timetable courses routes _) stops = (Timetable courses routes stops)
 
+getTimetableStopNameById timetable id = getStopNameById id (getTimetableStops timetable)
+
 isValidStop timatable stopId = isJust $ find (\s -> getStopId s == stopId) $ getTimetableStops timatable
+
+
+
 
 -- helper structure for next course
 -- NextCourse 
@@ -234,34 +234,38 @@ transferTimeMinutes = 5
 --		Int - stops count
 --		Datetime - arrival date/time
 --		TravelLeg -- previous stop								  
-data TravelLeg = TravelLeg StopId Int Int Datetime Course TravelLeg | InitialTravelLeg StopId Datetime
+data TravelLeg = TravelLeg StopId Int Int Datetime Datetime Course TravelLeg | InitialTravelLeg StopId Datetime
 
 instance Show TravelLeg where
 	show (InitialTravelLeg stopId arrivalTime) = "InitialTravelLeg stopId:" ++ show stopId ++ " arrivalTime: " ++ show arrivalTime
-	show (TravelLeg stopId travelTime stops arrivalTime course previous) = "TravelLeg stopId:" ++ show stopId ++ " travelTime:" ++ show (Time travelTime) ++ " stops:" ++ show stops ++ " arrivalTime:" ++ show arrivalTime
+	show (TravelLeg stopId travelTime stops departureTime arrivalTime course previous) = "TravelLeg stopId:" ++ show stopId ++ " travelTime:" ++ show (Time travelTime) ++ " stops:" ++ show stops ++ " departureTime:" ++ show departureTime ++ " arrivalTime:" ++ show arrivalTime
 
 getLegStopId :: TravelLeg -> StopId
-getLegStopId (TravelLeg stopId _ _ _ _ _) = stopId
+getLegStopId (TravelLeg stopId _ _ _ _ _ _) = stopId
 getLegStopId (InitialTravelLeg stopId _) = stopId
 
 getLegTravelTime :: TravelLeg -> Int
-getLegTravelTime (TravelLeg _ travelTime _ _ _ _) = travelTime
+getLegTravelTime (TravelLeg _ travelTime _ _ _ _ _) = travelTime
 getLegTravelTime (InitialTravelLeg _ _) = 0
 
 getLegStopsCount :: TravelLeg -> Int
-getLegStopsCount (TravelLeg _ _ stops _ _ _) = stops
+getLegStopsCount (TravelLeg _ _ stops _ _ _ _) = stops
 getLegStopsCount (InitialTravelLeg _ _) = 0
 
+getLegDepartureTime :: TravelLeg -> Maybe Datetime
+getLegDepartureTime (TravelLeg _ _ _ departureTime _ _ _) = Just departureTime
+getLegDepartureTime (InitialTravelLeg _ _) = Nothing
+
 getLegArrivalTime :: TravelLeg -> Datetime
-getLegArrivalTime (TravelLeg _ _ _ arrivalTime _ _) = arrivalTime
+getLegArrivalTime (TravelLeg _ _ _ _ arrivalTime _ _) = arrivalTime
 getLegArrivalTime (InitialTravelLeg _ arrivalTime) = arrivalTime
 
 getLegCourse :: TravelLeg -> Maybe Course
-getLegCourse (TravelLeg _ _ _ _ course _) = Just course
+getLegCourse (TravelLeg _ _ _ _ _ course _) = Just course
 getLegCourse (InitialTravelLeg _ _) = Nothing
 
 getLegPreviousLeg :: TravelLeg -> Maybe TravelLeg
-getLegPreviousLeg (TravelLeg _ _ _ _ _ previous) = Just previous
+getLegPreviousLeg (TravelLeg _ _ _ _ _ _ previous) = Just previous
 getLegPreviousLeg (InitialTravelLeg _ _) = Nothing
 
 -- function that compares two legs (assuming they both have same stopId)
@@ -282,6 +286,29 @@ legCompare left right
 -- DestinationUnreachable - route doesnt exist
 -- TooFewStops - couldnt find any route within given stop limit
 data TravelRoute = TravelRoute TravelLeg | DestinationUnreachable | TooFewStops deriving (Show)
+
+-- this is used for sorting only
+instance Eq TravelRoute where
+	DestinationUnreachable == DestinationUnreachable = True
+	TooFewStops == TooFewStops = True
+	(TravelRoute leg1) == (TravelRoute leg2) = getLegTravelTime leg1 == getLegTravelTime leg2 
+
+-- this is used for sorting only
+instance Ord TravelRoute where
+	compare DestinationUnreachable DestinationUnreachable = EQ
+	compare DestinationUnreachable _ = LT
+	compare _ DestinationUnreachable = LT
+	compare TooFewStops TooFewStops = EQ
+	compare TooFewStops _ = LT
+	compare _ TooFewStops = LT
+	compare TooFewStops _ = EQ
+	compare (TravelRoute leg1) (TravelRoute leg2)
+		| diff < 0 = LT
+		| diff == 0 = EQ
+		| diff > 0 = GT
+		where
+			diff = getLegTravelTime leg1 - getLegTravelTime leg2
+	
 
 type FeasibilityMap = Map StopId [TravelLeg]
 
@@ -350,7 +377,7 @@ findNextLegs leg feasibilityMap timetable = (nextLegs, feasibilityMap)
 				produceLegs stops = Data.List.map stopToLeg stops
 					where
 						--stopToLeg s = trace ("nextleg:" ++ show nextTravelTime ++ "i:" ++ show initialTravelTime ++ "w:" ++ show waitingTime ++ "t:" ++ show travelTime) (TravelLeg nextStopId nextTravelTime nextStopsCount nextArrivaltime rawCourse leg)
-						stopToLeg s = TravelLeg nextStopId nextTravelTime nextStopsCount nextArrivaltime rawCourse leg
+						stopToLeg s = TravelLeg nextStopId nextTravelTime nextStopsCount departureTime nextArrivaltime rawCourse leg
 							where
 								travelTime = getTravelTime s - stopTravelTime
 								nextStopId = getCourseStopId s

@@ -4,6 +4,7 @@ import Domain
 import Data.Char
 import Users
 import UI
+import Data.List
 import Data.Maybe
 
 
@@ -203,23 +204,46 @@ znajdzPolaczenie context = do
 		let godzina = fromHourMinute hour 0
 		putStrLn "Podaj maksymalna ilosc przystankow:"
 		maxStops <- pobierzNumer "Podaj maksymalna ilosc przystankow:"
-		wyswietlTrase(findQuickestRoute timetable stop1n stop2n (Datetime (toEnum(day)) godzina) maxStops)
+		let trasy = findQuickestRoute timetable stop1n stop2n (Datetime (toEnum(day - 1)) godzina) maxStops
+		let najkrotszeTrasy = sort trasy
+		mapM_ (wyswietlTrase timetable) (zip [1..] najkrotszeTrasy)
 		return context
 		
 -- Funkcja wyswietlajaca wynik dzialania findQuickestRoute
-wyswietlTrase :: [TravelRoute] -> IO ()
-wyswietlTrase ((TravelRoute (TravelLeg stopId _ _ _ _ _)):xs) = do
-	putStrLn "Trasa1"
-	wyswietlTrase xs
+wyswietlTrase timetable (n, trasa) = do
+	printStyledStr specialStyle (show n ++ ") ")
 	
-wyswietlTrase ((TooFewStops):xs) = do
-	putStrLn "Zbyt malo przystankow"
-	wyswietlTrase xs
-	
-wyswietlTrase ((DestinationUnreachable):xs) = do
-	putStrLn "Brak polaczen"
-	wyswietlTrase xs
+	case trasa of
+		TooFewStops -> do 
+			putStrLn "Zwieksz liczbe przystankow, aby pokazac kolejne wyniki"
+		
+		DestinationUnreachable -> do
+			putStrLn "Nie znaleziono wiecej polaczen"
+			
+		(TravelRoute leg) -> do
+			putStrLn ("Przyjazd: " ++ show (getLegArrivalTime leg))
+			putStrLn ("Czas podrozy: " ++ show (Time (getLegTravelTime leg)))
+			putStrLn ("Ilosc przystankow: " ++ show (getLegStopsCount leg))
+			wyswietlDroge leg timetable
+			putStrLn " --> Koniec trasy\n"	
+				
+	return ()
+			
 
+wyswietlDroge (InitialTravelLeg stopId arrivalTime) rozklad = do
+	putStrLn ("Poczatek trasy: " ++ show arrivalTime)
+	putStr (getTimetableStopNameById rozklad stopId)
+
+wyswietlDroge odcinek rozklad = do
+	let poprzedni = fromJust (getLegPreviousLeg odcinek)
+	wyswietlDroge poprzedni rozklad
+	let course = fromJust (getLegCourse odcinek)
+	let routeId = getCourseRouteId course
+	let stopName = getTimetableStopNameById rozklad (getLegStopId odcinek) 
+	let arrival = getLegArrivalTime odcinek
+	let departure = fromJust (getLegDepartureTime odcinek)
+	putStrLn (" o " ++ show departure ++ " --> linia " ++ show routeId ++ " --> " ++ stopName ++ " o " ++ show arrival)
+	putStr stopName
 	
 -------------------------------------------------------------------------------
 -- ACTIONS - ADMINISTRATION - STOPS
