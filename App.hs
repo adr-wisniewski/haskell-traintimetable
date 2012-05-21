@@ -15,7 +15,8 @@ main = do
 	initUI
 	putStrLn "Train timetable v1.00" 
 	--rozklad <- loadContext "timetable.dat"
-	mainMenu (MainMenuContext Anonymous (emptyTimetable))
+	--mainMenu (MainMenuContext Anonymous (emptyTimetable))
+	mainMenu (MainMenuContext Anonymous (rozklad))
 	writeContext rozklad "timetable.dat"
 	releaseUI
 		
@@ -231,18 +232,19 @@ wyswietlTrase timetable (n, trasa) = do
 			
 
 wyswietlDroge (InitialTravelLeg stopId arrivalTime) rozklad = do
-	putStrLn ("Poczatek trasy: " ++ show arrivalTime)
-	putStr (getTimetableStopNameById rozklad stopId)
+	let stopName = getTimetableStopNameById rozklad stopId
+	putStrLn ("Poczatek trasy --> " ++ stopName ++ " o " ++ show arrivalTime)
+	putStr stopName
 
 wyswietlDroge odcinek rozklad = do
 	let poprzedni = fromJust (getLegPreviousLeg odcinek)
 	wyswietlDroge poprzedni rozklad
 	let course = fromJust (getLegCourse odcinek)
-	let routeId = getCourseRouteId course
+	let routeName = getTimetableRouteNameById rozklad (getCourseRouteId course)
 	let stopName = getTimetableStopNameById rozklad (getLegStopId odcinek) 
 	let arrival = getLegArrivalTime odcinek
 	let departure = fromJust (getLegDepartureTime odcinek)
-	putStrLn (" o " ++ show departure ++ " --> linia " ++ show routeId ++ " --> " ++ stopName ++ " o " ++ show arrival)
+	putStrLn (" o " ++ show departure ++ " --> linia '" ++ routeName ++ "' --> " ++ stopName ++ " o " ++ show arrival)
 	putStr stopName
 	
 -------------------------------------------------------------------------------

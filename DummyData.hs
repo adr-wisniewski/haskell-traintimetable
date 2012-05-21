@@ -22,7 +22,8 @@ stacje = [
 -- Trasy
 trasy = [
 		(Route 1 "Jan Kiepura" [1, 2, 3]),
-		(Route 2 "Stefan Batory" [1, 3, 4])
+		(Route 2 "Jan Kiepura" [3, 2, 1]),
+		(Route 3 "Stefan Batory" [1, 3, 4])
 	]
 
 -- Jan Kiepura
@@ -36,6 +37,17 @@ janKiepuraKursy = [
 		(Course 1 1 (fromHourMinute 09 00) [Tue,Wed,Fri,Sat,Sun] janKiepuraStacje),
 		(Course 2 1 (fromHourMinute 15 00) [Tue,Wed,Fri,Sat,Sun] janKiepuraStacje)
 	]
+	
+janKiepuraStacje2 = [
+		(CourseStop 3 0), 
+		(CourseStop 2 60), 
+		(CourseStop 1 120)
+	]
+	
+janKiepuraKursy2 = [
+		(Course 3 2 (fromHourMinute 11 00) [Tue,Wed,Fri,Sat,Sun] janKiepuraStacje2),
+		(Course 4 2 (fromHourMinute 17 00) [Tue,Wed,Fri,Sat,Sun] janKiepuraStacje2)
+	]
 
 -- Stefan Batory
 stefanBatoryStacje = [
@@ -45,13 +57,13 @@ stefanBatoryStacje = [
 	]
 	
 stefanBatoryKursy = [
-		(Course 3 2 (fromHourMinute 15 30) [Sat,Sun] stefanBatoryStacje)
+		(Course 5 3 (fromHourMinute 15 30) [Sat,Sun] stefanBatoryStacje)
 	]
 
 
 
 -- Rozklad
-kursy = janKiepuraKursy ++ stefanBatoryKursy
+kursy = janKiepuraKursy ++ stefanBatoryKursy ++ janKiepuraKursy2
 rozklad = Timetable kursy trasy stacje
 
 
