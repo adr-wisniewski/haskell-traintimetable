@@ -156,7 +156,7 @@ adminMenu context = do
 		(Choice '6' "Dodaj kurs" (Action uiDodajKurs context)),
 		(Choice 'q' "Koniec" ExitAction)	
 		] context
-	return ()
+	return context
 		
 -- Lista dni tygodnia do menu. Niestety, nie udalo mi sie tego zrobic przez wyciagniecie z Enum
 
@@ -217,7 +217,7 @@ pobierzMinute = do
 	nr <- getStyledLine choiceStyle
 	let nrN = read nr::Int
 	if(nrN > 60 || nrN < 0) then do
-		putStrLn "Podaj prawidlowa godzine z przedzialu 0 - 23"
+		putStrLn "Podaj prawidlowa minute z przedzialu 0 - 59"
 		pobierzGodzine
 	else
 		return (nrN)
@@ -263,10 +263,10 @@ administracja context = do
 		ok <- Users.login (Users.User login pass)
 		if (ok == True) then 						
 			adminMenu context					
-		else
+		else do
 			putStrLn "Bledny login lub haslo"
-		return context
-		--mainMenu context
+			adminMenu context
+		adminMenu context
 		
 		
 getSequence [] max = max
@@ -280,18 +280,21 @@ getSequence ((Stop sid nazwa):xs) max = do
 uiDodajStacje context = do
 	putStrLn "Podaj nazwe stacji: "
 	nazwa <- getStyledLine choiceStyle
-	let tt = getTimetable context
+	let tt = rozklad --getTimetable context
 	let stops = getTimetableStops tt
 	let numer = getSequence stops 0
 	--let stopid = StopId numer
 	let newStop = Stop numer nazwa		
 	let newStops = stops ++ [newStop]
 	let newContext = setTimetable context (Timetable (getTimetableCourses(tt)) (getTimetableRoutes(tt)) newStops)
-	putStrLn "Dodano stacje"
-	putStrLn nazwa
+	printStyledStr defaultStyle "Dodano stacje "
+	printStyledStr defaultStyle  nazwa
+	printStyledStr defaultStyle  " id: " 
 	let numerStr = show numer
-	putStrLn numerStr
-	mainMenu newContext
+	printStyledStr defaultStyle numerStr
+	putStrLn ""
+
+	adminMenu newContext
 	
 	
 	
@@ -317,7 +320,7 @@ uiUsunStacje context = do
 	--let newStops = usunStacje stops stopN	
 	--let newContext = setTimetable context (Timetable (getTimetableCourses(tt)) (getTimetableRoutes(tt)) newStops)
 	--return context
-	mainMenu newContext
+	adminMenu newContext
 	
 uiDodajTrase context = do
 	let stacje = getTimetableStops rozklad
@@ -328,8 +331,8 @@ uiDodajTrase context = do
 	let numerN = read numer::Int
 	polaczenia <- uiDodajTraseLoop stacje [] context 0	
 	let rt = Route numerN nazwa polaczenia
-	putStrLn "Dodano nowe polaczenie"
-	mainMenu context
+	putStrLn "Dodano nowa trase"
+	adminMenu context
 	
 
 	
@@ -380,7 +383,7 @@ printRoutes((Route id name _):cs) = do
 uiDodajKurs context = do
 	let trasy = getTimetableRoutes rozklad
 	putStrLn "Podaj trase:"
-	let rId = pobierzNumerTrasy trasy
+	rId <- pobierzNumerTrasy trasy
 	putStrLn "Podaj bazowa godzine odjazdu:"
 	h <- getStyledLine choiceStyle
 	putStrLn "Podaj bazowa minute odjazdu:"
@@ -389,7 +392,7 @@ uiDodajKurs context = do
 	let mN = read m::Int
 	pobierzCzasyOdjazdow stacje []
 	putStrLn "Dodano nowy kurs"
-	mainMenu context
+	adminMenu context
 	
 	
 uiUsunPolaczenie context = do
