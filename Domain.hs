@@ -77,7 +77,7 @@ dniTygodnia  = [(Dzien 1 "Poniedzialek"),
 			   (Dzien 6 "Sobota" ),
 			   (Dzien 7 "Niedziela")]
 -------------------------------------------------------------------------------
--- TIMETABLE
+-- ENTITIES
 -------------------------------------------------------------------------------
 -- STOP
 type StopId = Int
@@ -109,6 +109,8 @@ getRouteNameById id ((Route rid name _):routes) =
 			else getRouteNameById id routes
 
 -- COURSE
+-- 	StopId - id of stop
+--	Int - accumulated travel time
 data CourseStop = CourseStop StopId Int deriving (Show, Read)
 
 getCourseStopId :: CourseStop -> StopId
@@ -176,9 +178,6 @@ getTimetableRouteNameById timetable id = getRouteNameById id (getTimetableRoutes
 
 isValidStop timatable stopId = isJust $ find (\s -> getStopId s == stopId) $ getTimetableStops timatable
 
-
-
-
 -- helper structure for next course
 -- NextCourse 
 --		Course - reference to course
@@ -233,6 +232,7 @@ transferTimeMinutes = 5
 --		StopId
 --		Int - travel time
 --		Int - stops count
+--		Datetime - departure date/time
 --		Datetime - arrival date/time
 --		TravelLeg -- previous stop								  
 data TravelLeg = TravelLeg StopId Int Int Datetime Datetime Course TravelLeg | InitialTravelLeg StopId Datetime
@@ -268,6 +268,21 @@ getLegCourse (InitialTravelLeg _ _) = Nothing
 getLegPreviousLeg :: TravelLeg -> Maybe TravelLeg
 getLegPreviousLeg (TravelLeg _ _ _ _ _ _ previous) = Just previous
 getLegPreviousLeg (InitialTravelLeg _ _) = Nothing
+
+isLegCirricular (InitialTravelLeg _ _) = False
+isLegCirricular leg = isLegCirricularRecursive leg (fromJust (getLegPreviousLeg leg))
+isLegCirricularRecursive leg before
+	| getLegStopId leg == getLegStopId before = True
+	| isNothing maybePreviousLeg = False
+	| otherwise = isLegCirricularRecursive leg (fromJust maybePreviousLeg)
+	where
+		maybePreviousLeg = getLegPreviousLeg before
+
+isContinuation (InitialTravelLeg _ _) = False
+isContinuation leg = not (isNothing previousCourse) && getCourseId (currentCourse) == getCourseId (fromJust (previousCourse))
+	where
+		currentCourse = fromJust (getLegCourse leg)
+		previousCourse = (getLegCourse (fromJust (getLegPreviousLeg leg)))
 
 -- function that compares two legs (assuming they both have same stopId)
 -- returns Maybe Ordering, because legs can be uncompareable (longer with fewer stops or shorter with more stops) 
@@ -309,7 +324,23 @@ instance Ord TravelRoute where
 		where
 			diff = getLegTravelTime leg1 - getLegTravelTime leg2
 	
-
+-------------------------------------------------------------------------------
+-- QUICKEST ROUTE ALGORITHM
+-------------------------------------------------------------------------------
+-- Algorithm is very simple. It places initial travel leg inti unvisited queue (sorted by stops count). 
+-- Then it takes first leg from queue and extends it generating legs for all reachable
+-- stops using all routes (earliest course on each route) with exception to infeasible legs
+-- (ie containing cirricular path or transfering to same routes). If max stop limit is reached
+-- path generation is disabled and algorithm inspects remaining legs in queue. When destionation
+-- is found, algorithm pushes it onto results list and continues to look for another routes (maybe shorter,
+-- with more transfers).
+	
+	
+-- This can be used to filter additional infeasible travel legs similar to Dijkstra algorithm. We dont
+-- usually need to consider legs strictly worse then already visited.
+-- Map contains lists of best legs found for all stops. In contrast to Dijkstra algorithm, this is not
+-- static array, because legs can be uncompareable .
+-- This functionality was finally dropped, because this way we can present many different routes to specified destination
 type FeasibilityMap = Map StopId [TravelLeg]
 
 -- facade function implementing validation and starting recursive procedure
@@ -373,7 +404,9 @@ findNextLegs leg feasibilityMap timetable = (nextLegs, feasibilityMap)
 				waitingTime = getNextCourseWaitingTime nextCourse
 				legs = produceLegs (getCourseStopsAfter rawCourse stopId)
 				feasibleLegs = filterInfeasible legs feasibilityMap
-				filterInfeasible legs feasibilityMap = legs -- TODO: finish this
+				
+				filterInfeasible legs feasibilityMap = Data.List.filter (\leg -> not (isLegCirricular leg) && not (isContinuation leg)) legs
+				
 				produceLegs stops = Data.List.map stopToLeg stops
 					where
 						--stopToLeg s = trace ("nextleg:" ++ show nextTravelTime ++ "i:" ++ show initialTravelTime ++ "w:" ++ show waitingTime ++ "t:" ++ show travelTime) (TravelLeg nextStopId nextTravelTime nextStopsCount nextArrivaltime rawCourse leg)
