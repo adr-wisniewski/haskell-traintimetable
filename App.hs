@@ -141,16 +141,14 @@ pokazKursy context = do
 	return context		
 	
 znajdzPolaczenie context = do
+		let timetable = getContextTimetable context
 		putStrLn "Wybierz stacje poczatkowa:"
-		return context
-		{-
-		putStrLn "Wybierz stacje poczatkowa:"
-		let stacje = getTimetableStops context --getTimetableStops (getTimetable context)
+		let stacje = getTimetableStops timetable
 		printStops stacje
 		stop1n <- pobierzNumerStacji stacje
 		putStrLn "Wybierz stacje koncowa:"
-		printStops (usunStacje stacje stop1n)
-		stop2n <- pobierzNumerStacji (usunStacje stacje stop1n)
+		printStops (filtrujStacje stacje stop1n)
+		stop2n <- pobierzNumerStacji (filtrujStacje stacje stop1n)
 		putStrLn "Podaj dzien wyjazdu:"
 		printDays dniTygodnia				
 		day <- pobierzDzien dniTygodnia
@@ -159,10 +157,23 @@ znajdzPolaczenie context = do
 		let godzina = fromHourMinute hour 0
 		putStrLn "Podaj maksymalna ilosc przystankow:"
 		maxStops <- pobierzNumer "Podaj maksymalna ilosc przystankow:"
-		wyswietlTrase(findQuickestRoute context stop1n stop2n (Datetime (toEnum(day)) godzina) maxStops)
+		wyswietlTrase(findQuickestRoute timetable stop1n stop2n (Datetime (toEnum(day)) godzina) maxStops)
 		return context
-		mainMenu context
-		-}
+		
+-- Funkcja wyswietlajaca wynik dzialania findQuickestRoute
+wyswietlTrase :: [TravelRoute] -> IO ()
+wyswietlTrase ((TravelRoute (TravelLeg stopId _ _ _ _ _)):xs) = do
+	putStrLn "Trasa1"
+	wyswietlTrase xs
+	
+wyswietlTrase ((TooFewStops):xs) = do
+	putStrLn "Zbyt malo przystankow"
+	wyswietlTrase xs
+	
+wyswietlTrase ((DestinationUnreachable):xs) = do
+	putStrLn "Brak polaczen"
+	wyswietlTrase xs
+
 	
 -------------------------------------------------------------------------------
 -- ACTIONS - ADMINISTRATION - STOPS
@@ -269,19 +280,7 @@ getCourseSequence ((Course cid _ _ _ _):xs) max = do
 	
 {-	
 			 
--- Funkcja wyswietlajaca wynik dzialania findQuickestRoute
-wyswietlTrase :: [TravelRoute] -> IO ()
-wyswietlTrase ((TravelRoute (TravelLeg stopId _ _ _ _ _)):xs) = do
-	putStrLn "Trasa1"
-	wyswietlTrase xs
-	
-wyswietlTrase ((TooFewStops):xs) = do
-	putStrLn "Zbyt malo przystankow"
-	wyswietlTrase xs
-	
-wyswietlTrase ((DestinationUnreachable):xs) = do
-	putStrLn "Brak polaczen"
-	wyswietlTrase xs
+
 
 
 
