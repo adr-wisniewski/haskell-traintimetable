@@ -5,61 +5,11 @@ import Domain
 import Data.Char
 import Users
 import Database
-
-
+import Print
+import Styles
 		
 		
--------------------------------------------------------------------------------
--- INIT & RELEASE
--------------------------------------------------------------------------------
-initUI = do
-	setSGR defaultStyle
-		
-releaseUI = do
-	setSGR [Reset]
 
--------------------------------------------------------------------------------
--- STYLES
--------------------------------------------------------------------------------
-defaultStyle = [color]
-	where
-		color = SetColor Foreground Vivid White
-
-choiceStyle = [color]
-	where
-		color = SetColor Foreground Vivid Green
-
-specialStyle = [color]
-	where
-		color = SetColor Foreground Vivid Yellow
-		
-errorStyle = [color]
-	where
-		color = SetColor Foreground Vivid Red
-			
-printStyledStr style text = do
-	setSGR style
-	putStr text
-	setSGR defaultStyle
-	
-printStyledStrLn style text = do
-	setSGR style
-	putStrLn text
-	setSGR defaultStyle
-	
-getStyledLine style = do
-	setSGR style
-	line <- getLine
-	setSGR defaultStyle
-	return line
-
-	
-getStyledNumber style = do
-	setSGR style
-	line <- getLine
-	setSGR defaultStyle
-	let lineN = read line::Int
-	return lineN
 -------------------------------------------------------------------------------
 -- MENU COMPONENT
 -------------------------------------------------------------------------------
@@ -72,22 +22,8 @@ data Choice action = Choice Char [Char] action | InvalidChoice
 	
 --menu :: [Choice (Action)] -> (IO DB) -> IO String
 
-printStops [] = do return ()
-printStops((Stop key name):cs) = do
-	printStyledStr choiceStyle (show key)
-	printStyledStr specialStyle ") "
-	putStrLn name
-	printStops cs
+
 	
-	
-	
-printDays [] = do return ()
-printDays((Dzien key name):cs) = do
-	printStyledStr choiceStyle (show key)
-	printStyledStr specialStyle ") "
-	putStrLn name
-	printDays cs
-			
 menu choices context = do
 	printChoices choices
 	putStr "Enter choice: "
@@ -138,36 +74,38 @@ getChoiceValue sid = do
 
 -- Menu glowne - dla kazdego uzytkownika
 mainMenu context = do
+	putStrLn ""
+	putStrLn "Menu:"
 	menu [
 		(Choice '1' "Znajdz polaczenie" (Action znajdzPolaczenie context)),
-		(Choice '2' "Administracja" (Action administracja context)),
+		(Choice '2' "Pokaz stacje" (Action uiPokazStacje context)),
+		(Choice '3' "Pokaz trasy" (Action uiPokazTrasy context)),
+		(Choice '4' "Pokaz kursy" (Action uiPokazKursy context)),
+		(Choice '5' "Administracja" (Action administracja context)),
 		(Choice 'q' "Koniec" ExitAction)
 		] context
 	return context
 
 adminMenu context = do
+	putStrLn ""
 	putStrLn "Logowanie pomyslne"
 	menu [
 		(Choice '1' "Znajdz polaczenie" (Action znajdzPolaczenie context)),
-		(Choice '2' "Dodaj stacje" (Action uiDodajStacje context)),
-		(Choice '3' "Usun stacje" (Action uiUsunStacje context)),
-		(Choice '4' "Dodaj trase" (Action uiDodajTrase context)),
-		(Choice '5' "Usun trase" (Action uiUsunPolaczenie context)),
-		(Choice '6' "Dodaj kurs" (Action uiDodajKurs context)),
+		(Choice '2' "Pokaz stacje" (Action uiPokazStacje context)),
+		(Choice '3' "Pokaz trasy" (Action uiPokazTrasy context)),
+		(Choice '4' "Pokaz kursy" (Action uiPokazKursy context)),
+		(Choice '5' "Dodaj stacje" (Action uiDodajStacje context)),
+		(Choice '6' "Usun stacje" (Action uiUsunStacje context)),
+		(Choice '7' "Dodaj trase" (Action uiDodajTrase context)),
+		(Choice '8' "Usun trase" (Action uiUsunPolaczenie context)),
+		(Choice '9' "Dodaj kurs" (Action uiDodajKurs context)),
 		(Choice 'q' "Koniec" ExitAction)	
 		] context
 	return context
 		
 -- Lista dni tygodnia do menu. Niestety, nie udalo mi sie tego zrobic przez wyciagniecie z Enum
 
-data Dzien = Dzien Int String
-dniTygodnia  = [(Dzien 1 "Poniedzialek"),
-			   (Dzien 2 "Wtorek" ),
-			   (Dzien 3 "Sroda" ),
-			   (Dzien 4 "Czwartek" ),
-			   (Dzien 5 "Piatek" ),
-			   (Dzien 6 "Sobota" ),
-			   (Dzien 7 "Niedziela")]
+
 
 
 -- Funkcja wyswietlajaca wynik dzialania findQuickestRoute
@@ -219,7 +157,7 @@ sprawdzNumer :: [Char] -> Int -> Int -> Bool
 sprawdzNumer nr min max = do
 							if((isNum(nr) == True)) then do
 											let nrN = read nr::Int
-											if(nrN > min || nrN < max) then True
+											if(nrN > min && nrN < max) then True
 											else False
 							else False
 				
@@ -238,8 +176,17 @@ pobierzMinute = do
 			let nrN = read nr::Int
 			return nrN
 	else do
-		putStrLn "Podaj prawidlowa godzine z przedzialu 0 - 23"
-		pobierzGodzine
+		putStrLn "Podaj prawidlowa minute z przedzialu 0 - 59"
+		pobierzMinute
+		
+pobierzNumer text= do
+	nr <- getStyledLine choiceStyle
+	if ((sprawdzNumer nr (-1) 100000) == True) then do
+			let nrN = read nr::Int
+			return nrN
+	else do
+		putStrLn text
+		pobierzNumer text
 		
 pobierzNumerStacji stacje = do
 		nr <- getStyledLine choiceStyle
@@ -253,6 +200,7 @@ pobierzNumerStacji stacje = do
 			
 
 		
+
 		
 znajdzPolaczenie context = do
 		putStrLn "Wybierz stacje poczatkowa:"
@@ -260,8 +208,8 @@ znajdzPolaczenie context = do
 		printStops stacje
 		stop1n <- pobierzNumerStacji stacje
 		putStrLn "Wybierz stacje koncowa:"
-		printStops stacje
-		stop2n <- pobierzNumerStacji stacje
+		printStops (usunStacje stacje stop1n)
+		stop2n <- pobierzNumerStacji (usunStacje stacje stop1n)
 		putStrLn "Podaj dzien wyjazdu:"
 		printDays dniTygodnia				
 		day <- pobierzDzien dniTygodnia
@@ -269,11 +217,26 @@ znajdzPolaczenie context = do
 		hour <- pobierzGodzine	
 		let godzina = fromHourMinute hour 0
 		putStrLn "Podaj maksymalna ilosc przystankow:"
-		maxStops <- getStyledNumber choiceStyle
+		maxStops <- pobierzNumer "Podaj maksymalna ilosc przystankow:"
 		wyswietlTrase(findQuickestRoute context stop1n stop2n (Datetime (toEnum(day)) godzina) maxStops)
 		return context
 		mainMenu context
+		
+uiPokazStacje context = do
+	let stacje = getTimetableStops context
+	printStops stacje
+	mainMenu context
 				
+uiPokazTrasy context = do
+	let trasy = getTimetableRoutes context
+	printRoutes trasy context
+	mainMenu context
+
+uiPokazKursy context = do
+	let courses = getTimetableCourses context 
+	printCourses courses context
+	mainMenu context	
+	
 administracja context = do
 		putStrLn "Podaj nazwe uzytkownika:"
 		login <- getStyledLine choiceStyle
@@ -289,19 +252,26 @@ administracja context = do
 		
 
 -- Pobiera sekwencje, zeby automatycznie nadac numer nowej stacji
-getSequence [] max = (max + 1)
-getSequence ((Stop sid nazwa):xs) max = do
+getStopSequence [] max = (max + 1)
+getStopSequence ((Stop sid nazwa):xs) max = do
 	if(sid > max) then 
-		getSequence xs sid
+		getStopSequence xs sid
 	else
-		getSequence xs max 
+		getStopSequence xs max 
+
+getRouteSequence [] max = (max + 1)
+getRouteSequence ((Route rid _ _):xs) max = do
+	if(rid > max) then 
+		getRouteSequence xs rid
+	else
+		getRouteSequence xs max 
 		
 uiDodajStacje context = do
 	putStrLn "Podaj nazwe stacji: "
 	nazwa <- getStyledLine choiceStyle
 	let tt = rozklad --getTimetable context
 	let stops = getTimetableStops tt
-	let numer = getSequence stops 0
+	let numer = getStopSequence stops 0
 	--let stopid = StopId numer
 	let newStop = Stop numer nazwa		
 	let newStops = stops ++ [newStop]
@@ -341,15 +311,19 @@ uiUsunStacje context = do
 	adminMenu newContext
 	
 uiDodajTrase context = do
-	let stacje = getTimetableStops rozklad
+	let stacje = getTimetableStops context
+	let routes = getTimetableRoutes context
 	putStrLn "Podaj nazwe trasy:"
 	nazwa <- getStyledLine choiceStyle
-	putStrLn "Podaj numer trasy:"
-	numer <- getStyledLine choiceStyle
-	let numerN = read numer::Int
+	let numer = getRouteSequence routes 0
 	polaczenia <- uiDodajTraseLoop stacje [] context 0	
-	let rt = Route numerN nazwa polaczenia
-	putStrLn "Dodano nowa trase"
+	let rt = Route numer nazwa polaczenia
+	putStrLn "Dodano nowa trase "
+	printStyledStr defaultStyle nazwa
+	printStyledStr defaultStyle " id: "
+	let numerStr = show numer
+	printStyledStr defaultStyle numerStr
+	putStrLn ""
 	adminMenu context
 	
 
@@ -358,15 +332,16 @@ uiDodajTraseLoop stacje wybraneStacje context st = do
 	
 	if(st /= -1) then do
 		putStrLn "Podaj stacje wchodzaca w sklad kursu, lub -1, jesli koniec:"
-		printStops stacje
+		printStops (usunStacje stacje st)
 		st <- pobierzNumerStacji stacje		
-		uiDodajTraseLoop stacje ([st] ++ wybraneStacje) context st
+		uiDodajTraseLoop (usunStacje stacje st) ([st] ++ wybraneStacje) context st
 	else
 		return (wybraneStacje)
 
 		
 pobierzCzasyOdjazdow [] wybrane = do
 		return wybrane 
+		
 pobierzCzasyOdjazdow ((Stop sid nazwa):xs) wybrane = do
 		printStyledStr defaultStyle "Podaj czas odjazdu ze stacji: "
 		printStyledStr defaultStyle nazwa
@@ -380,28 +355,23 @@ sprawdzNumerTrasy [] _ = False
 sprawdzNumerTrasy ((Route rid _ _ ):xs) nr = if(rid == nr || nr == -1) then True
 										else sprawdzNumerTrasy xs nr
 		
-pobierzNumerTrasy trasy = do
-		printRoutes trasy
+pobierzNumerTrasy trasy context = do
+		printRoutes trasy context
 		nr <- getStyledLine choiceStyle
 		let nrN = read nr::Int
 		if((sprawdzNumerTrasy trasy nrN) == False) then do
 			putStrLn "Podaj prawidlowy numer trasy:"
-			pobierzNumerTrasy trasy
+			pobierzNumerTrasy trasy context
 		else
 			return (nrN)
 
 
-printRoutes [] = do return ()
-printRoutes((Route id name _):cs) = do
-	printStyledStr choiceStyle (show id)
-	printStyledStr specialStyle ") "
-	putStrLn name
-	printRoutes cs
+
 	
 uiDodajKurs context = do
 	let trasy = getTimetableRoutes rozklad
 	putStrLn "Podaj trase:"
-	rId <- pobierzNumerTrasy trasy
+	rId <- pobierzNumerTrasy trasy context
 	putStrLn "Podaj bazowa godzine odjazdu:"
 	h <- getStyledLine choiceStyle
 	putStrLn "Podaj bazowa minute odjazdu:"
