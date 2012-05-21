@@ -165,7 +165,7 @@ printStopsByIds ((sid):stopids) context = do
 	printStopsByIds stopids context
 	
 -------------------------------------------------------------------------------
--- INPUT WIDGETS
+-- INPUT WIDGETS + VALIDATION
 -------------------------------------------------------------------------------	
 sprawdzDzien [] _ = False
 sprawdzDzien ((Dzien sid nazwa):xs) nr = do
@@ -274,6 +274,31 @@ pobierzNazwe text = do
 				pobierzNazwe text
 			else
 				return nazwa
+				
+pobierzCzasyOdjazdow [] wybrane = do
+		return wybrane 
+		
+pobierzCzasyOdjazdow ((Stop sid nazwa):xs) wybrane = do
+		printStyledStr defaultStyle "Podaj czas odjazdu ze stacji: "
+		printStyledStr defaultStyle nazwa
+		putStrLn ""
+		m <- getStyledLine choiceStyle
+		let mN = read m::Int
+		pobierzCzasyOdjazdow xs ([(CourseStop sid mN)] ++ wybrane)
+		
+
+sprawdzNumerTrasy [] _ = False
+sprawdzNumerTrasy ((Route rid _ _ ):xs) nr = if(rid == nr || nr == -1) then True
+										else sprawdzNumerTrasy xs nr
+pobierzNumerTrasy trasy context = do
+		printRoutes trasy context
+		nr <- getStyledLine choiceStyle
+		let nrN = read nr::Int
+		if((sprawdzNumerTrasy trasy nrN) == False) then do
+			putStrLn "Podaj prawidlowy numer trasy:"
+			pobierzNumerTrasy trasy context
+		else
+			return (nrN)
 				
 isNum str = case reads str :: [(Integer, String)] of
 	[(_, "")] -> True
