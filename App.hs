@@ -192,23 +192,27 @@ znajdzPolaczenie context = do
 		let timetable = getContextTimetable context
 		putStrLn "Wybierz stacje poczatkowa:"
 		let stacje = getTimetableStops timetable
-		printStops stacje
-		stop1n <- pobierzNumerStacji stacje
-		putStrLn "Wybierz stacje koncowa:"
-		printStops (filtrujStacje stacje stop1n)
-		stop2n <- pobierzNumerStacji (filtrujStacje stacje stop1n)
-		putStrLn "Podaj dzien wyjazdu:"
-		printDays dniTygodnia				
-		day <- pobierzDzien dniTygodnia
-		putStrLn "Podaj godzine wyjazdu z przedzialu 0 - 23:"
-		hour <- pobierzGodzine	
-		let godzina = fromHourMinute hour 0
-		putStrLn "Podaj maksymalna ilosc przystankow:"
-		maxStops <- pobierzNumer "Podaj maksymalna ilosc przystankow:"
-		let trasy = findQuickestRoute timetable stop1n stop2n (Datetime (toEnum(day - 1)) godzina) maxStops
-		let najkrotszeTrasy = sort trasy
-		mapM_ (wyswietlTrase timetable) (zip [1..] najkrotszeTrasy)
-		return context
+		if (null stacje)  then do
+			putStrLn "W systemie nie ma zadnych stacji"
+			return context
+		else do			
+			printStops stacje
+			stop1n <- pobierzNumerStacji stacje
+			putStrLn "Wybierz stacje koncowa:"
+			printStops (filtrujStacje stacje stop1n)
+			stop2n <- pobierzNumerStacji (filtrujStacje stacje stop1n)
+			putStrLn "Podaj dzien wyjazdu:"
+			printDays dniTygodnia				
+			day <- pobierzDzien dniTygodnia
+			putStrLn "Podaj godzine wyjazdu z przedzialu 0 - 23:"
+			hour <- pobierzGodzine	
+			let godzina = fromHourMinute hour 0
+			putStrLn "Podaj maksymalna ilosc przystankow:"
+			maxStops <- pobierzNumer "Podaj maksymalna ilosc przystankow:"
+			let trasy = findQuickestRoute timetable stop1n stop2n (Datetime (toEnum(day - 1)) godzina) maxStops
+			let najkrotszeTrasy = sort trasy
+			mapM_ (wyswietlTrase timetable) (zip [1..] najkrotszeTrasy)
+			return context
 		
 -- Funkcja wyswietlajaca wynik dzialania findQuickestRoute
 wyswietlTrase timetable (n, trasa) = do
