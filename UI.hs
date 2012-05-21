@@ -151,8 +151,9 @@ adminMenu context = do
 		(Choice '1' "Znajdz polaczenie" (Action znajdzPolaczenie context)),
 		(Choice '2' "Dodaj stacje" (Action uiDodajStacje context)),
 		(Choice '3' "Usun stacje" (Action uiUsunStacje context)),
-		(Choice '4' "Dodaj polaczenie" (Action uiDodajPolaczenie context)),
-		(Choice '5' "Usun polaczenie" (Action uiUsunPolaczenie context)),
+		(Choice '4' "Dodaj trase" (Action uiDodajTrase context)),
+		(Choice '5' "Usun trase" (Action uiUsunPolaczenie context)),
+		(Choice '6' "Dodaj kurs" (Action uiDodajKurs context)),
 		(Choice 'q' "Koniec" ExitAction)	
 		] context
 	return ()
@@ -199,7 +200,7 @@ pobierzDzien dni = do
 			return (nrN)
 	
 sprawdzNumer [] _ = False
-sprawdzNumer ((Stop sid nazwa):xs) nr = if(sid == nr || sid == -1) then True
+sprawdzNumer ((Stop sid nazwa):xs) nr = if(sid == nr || nr == -1) then True
 										else sprawdzNumer xs nr
 										
 									
@@ -207,6 +208,15 @@ pobierzGodzine = do
 	nr <- getStyledLine choiceStyle
 	let nrN = read nr::Int
 	if(nrN > 23 || nrN < 0) then do
+		putStrLn "Podaj prawidlowa godzine z przedzialu 0 - 23"
+		pobierzGodzine
+	else
+		return (nrN)
+		
+pobierzMinute = do
+	nr <- getStyledLine choiceStyle
+	let nrN = read nr::Int
+	if(nrN > 60 || nrN < 0) then do
 		putStrLn "Podaj prawidlowa godzine z przedzialu 0 - 23"
 		pobierzGodzine
 	else
@@ -221,6 +231,9 @@ pobierzNumerStacji stacje = do
 			pobierzNumerStacji stacje
 		else
 			return (nrN)
+			
+
+		
 		
 znajdzPolaczenie context = do
 		putStrLn "Wybierz stacje poczatkowa:"
@@ -306,25 +319,77 @@ uiUsunStacje context = do
 	--return context
 	mainMenu newContext
 	
-uiDodajPolaczenie context = do
-	stacja <- pobierzNumerStacji stacje
-	polaczenia <- uiDodajPolaczenieLoop stacje [] context
-	
-	
-	--let tt = getTimetable context
-	
-	return context
-	
-	
-uiDodajPolaczenieLoop stacje wybraneStacje context = do
-	putStrLn "Podaj stacje wchodzaca w sklad kursu, lub -1, jesli koniec:"
+uiDodajTrase context = do
 	let stacje = getTimetableStops rozklad
-	let st = 0
+	putStrLn "Podaj nazwe trasy:"
+	nazwa <- getStyledLine choiceStyle
+	putStrLn "Podaj numer trasy:"
+	numer <- getStyledLine choiceStyle
+	let numerN = read numer::Int
+	polaczenia <- uiDodajTraseLoop stacje [] context 0	
+	let rt = Route numerN nazwa polaczenia
+	putStrLn "Dodano nowe polaczenie"
+	mainMenu context
+	
+
+	
+uiDodajTraseLoop stacje wybraneStacje context st = do
+	
 	if(st /= -1) then do
-		let st = pobierzNumerStacji stacje
-		return uiDodajPolaczenieLoop stacje [st] ++ wybraneStacje context
+		putStrLn "Podaj stacje wchodzaca w sklad kursu, lub -1, jesli koniec:"
+		printStops stacje
+		st <- pobierzNumerStacji stacje		
+		uiDodajTraseLoop stacje ([st] ++ wybraneStacje) context st
 	else
-		wybraneStacje
+		return (wybraneStacje)
+
+		
+pobierzCzasyOdjazdow [] wybrane = do
+		return wybrane 
+pobierzCzasyOdjazdow ((Stop sid nazwa):xs) wybrane = do
+		printStyledStr defaultStyle "Podaj czas odjazdu ze stacji: "
+		printStyledStr defaultStyle nazwa
+		putStrLn ""
+		m <- getStyledLine choiceStyle
+		let mN = read m::Int
+		pobierzCzasyOdjazdow xs ([(CourseStop sid mN)] ++ wybrane)
+		
+
+sprawdzNumerTrasy [] _ = False
+sprawdzNumerTrasy ((Route rid _ _ ):xs) nr = if(rid == nr || nr == -1) then True
+										else sprawdzNumerTrasy xs nr
+		
+pobierzNumerTrasy trasy = do
+		printRoutes trasy
+		nr <- getStyledLine choiceStyle
+		let nrN = read nr::Int
+		if((sprawdzNumerTrasy trasy nrN) == False) then do
+			putStrLn "Podaj prawidlowy numer trasy:"
+			pobierzNumerTrasy trasy
+		else
+			return (nrN)
+
+
+printRoutes [] = do return ()
+printRoutes((Route id name _):cs) = do
+	printStyledStr choiceStyle (show id)
+	printStyledStr specialStyle ") "
+	putStrLn name
+	printRoutes cs
+	
+uiDodajKurs context = do
+	let trasy = getTimetableRoutes rozklad
+	putStrLn "Podaj trase:"
+	let rId = pobierzNumerTrasy trasy
+	putStrLn "Podaj bazowa godzine odjazdu:"
+	h <- getStyledLine choiceStyle
+	putStrLn "Podaj bazowa minute odjazdu:"
+	let hN = read h::Int
+	m <- getStyledLine choiceStyle
+	let mN = read m::Int
+	pobierzCzasyOdjazdow stacje []
+	putStrLn "Dodano nowy kurs"
+	mainMenu context
 	
 	
 uiUsunPolaczenie context = do
