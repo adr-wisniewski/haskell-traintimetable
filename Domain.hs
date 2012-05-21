@@ -66,6 +66,16 @@ earliest start traveltime initialDeparture days = earliestTime
 		earliestTime = minimumBy earliestComparator times
 		earliestComparator left right = compare (snd left) (snd right)
 		
+		
+		
+data Dzien = Dzien Int String
+dniTygodnia  = [(Dzien 1 "Poniedzialek"),
+			   (Dzien 2 "Wtorek" ),
+			   (Dzien 3 "Sroda" ),
+			   (Dzien 4 "Czwartek" ),
+			   (Dzien 5 "Piatek" ),
+			   (Dzien 6 "Sobota" ),
+			   (Dzien 7 "Niedziela")]
 -------------------------------------------------------------------------------
 -- TIMETABLE
 -------------------------------------------------------------------------------
@@ -79,6 +89,11 @@ getStopId (Stop stopId _) = stopId
 getStopName :: Stop -> String
 getStopName (Stop _ stopName) = stopName
 
+getStopNameById _ [] = ""
+getStopNameById id ((Stop sid name):stops) = 
+			if(id == sid) then name
+			else getStopNameById id stops
+
 -- ROUTE
 type RouteId = Int
 data Route = Route RouteId String [StopId] deriving (Show, Read)
@@ -90,6 +105,12 @@ getRouteStops (Route _ _ stops) = stops
 
 -- COURSE
 data CourseStop = CourseStop StopId Int deriving (Show, Read)
+
+
+
+		
+
+
 
 getCourseStopId :: CourseStop -> StopId
 getCourseStopId (CourseStop stopId _) = stopId

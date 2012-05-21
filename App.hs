@@ -2,25 +2,24 @@ import Database
 import Domain
 import UI
 import DummyData
-
+import Styles
 
 main = do	
 
-	--context <- loadContext "timetable.dat"
 	initUI
 	putStrLn "Train timetable v1.00" 
-	
+	--let rozklad = loadContext "timetable.dat"
 	mainMenu rozklad
---	writeContext context2 "timetable.dat"
+	writeContext rozklad "timetable.dat"
 	releaseUI
 		
 
---writeContext :: IO DB -> String -> IO ()
---writeContext context fname = do writeFile fname (show context)
+writeContext :: Timetable -> String -> IO ()
+writeContext context fname = do writeFile fname (show context)
 
 loadContext fname = do 
                      line <- readFile fname
-                     let context = read line :: DB 
+                     let context = read line :: Timetable
                      return context
 					 
 getAct action = do
