@@ -20,11 +20,18 @@ import System.Exit
 main = do	
 	initUI
 	putStrLn "Train timetable v1.00" 
-	rozklad <- loadContext "timetable.dat"
-	--mainMenu (MainMenuContext Anonymous (emptyTimetable))
-	mainMenu (MainMenuContext Anonymous (rozklad))
-	writeContext rozklad "timetable.dat"
+	timetable <- loadContext "timetable.dat" `catch` readhandler
+	mainMenu (MainMenuContext Anonymous (timetable))
+	writeContext timetable "timetable.dat" `catch` writehandler
 	releaseUI
+	
+readhandler error = do
+	putStrLn ("Couldnt read data file! Using empty timetable! " ++ show error)
+	return emptyTimetable
+	
+writehandler error = do
+	putStrLn ("Couldnt write data file! Changes will not be saved! " ++ show error)
+	return ()
 		
 -------------------------------------------------------------------------------
 -- SAVING / LOADING
