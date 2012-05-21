@@ -4,7 +4,6 @@ import DummyData
 import Domain
 import Data.Char
 import Users
-import Database
 import Print
 import Styles
 		
@@ -199,7 +198,13 @@ pobierzNumerStacji stacje = do
 			return (nrN)
 			
 
-		
+pobierzNazwe text = do
+			putStrLn text
+			nazwa <- getStyledLine choiceStyle
+			if(nazwa == "") then 
+				pobierzNazwe text
+			else
+				return nazwa
 
 		
 znajdzPolaczenie context = do
@@ -247,8 +252,8 @@ administracja context = do
 			adminMenu context					
 		else do
 			putStrLn "Bledny login lub haslo"
-			adminMenu context
-		adminMenu context
+			mainMenu context
+		mainMenu context
 		
 
 -- Pobiera sekwencje, zeby automatycznie nadac numer nowej stacji
@@ -267,8 +272,8 @@ getRouteSequence ((Route rid _ _):xs) max = do
 		getRouteSequence xs max 
 		
 uiDodajStacje context = do
-	putStrLn "Podaj nazwe stacji: "
-	nazwa <- getStyledLine choiceStyle
+
+	nazwa <- pobierzNazwe "Podaj nazwe stacji"
 	let tt = rozklad --getTimetable context
 	let stops = getTimetableStops tt
 	let numer = getStopSequence stops 0
@@ -310,11 +315,12 @@ uiUsunStacje context = do
 	--return context
 	adminMenu newContext
 	
+	
+
 uiDodajTrase context = do
 	let stacje = getTimetableStops context
 	let routes = getTimetableRoutes context
-	putStrLn "Podaj nazwe trasy:"
-	nazwa <- getStyledLine choiceStyle
+	nazwa <- pobierzNazwe "Podaj nazwe trasy:"
 	let numer = getRouteSequence routes 0
 	polaczenia <- uiDodajTraseLoop stacje [] context 0	
 	let rt = Route numer nazwa polaczenia
@@ -324,7 +330,8 @@ uiDodajTrase context = do
 	let numerStr = show numer
 	printStyledStr defaultStyle numerStr
 	putStrLn ""
-	adminMenu context
+	let newContext = Timetable (getTimetableCourses context) (routes ++ [rt]) (getTimetableStops context)
+	adminMenu newContext
 	
 
 	
@@ -378,6 +385,7 @@ uiDodajKurs context = do
 	let hN = read h::Int
 	m <- getStyledLine choiceStyle
 	let mN = read m::Int
+	
 	pobierzCzasyOdjazdow stacje []
 	putStrLn "Dodano nowy kurs"
 	adminMenu context

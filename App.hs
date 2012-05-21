@@ -1,4 +1,3 @@
-import Database
 import Domain
 import UI
 import DummyData
@@ -8,7 +7,7 @@ main = do
 
 	initUI
 	putStrLn "Train timetable v1.00" 
-	--let rozklad = loadContext "timetable.dat"
+	--rozklad <- loadContext "timetable.dat"
 	mainMenu rozklad
 	writeContext rozklad "timetable.dat"
 	releaseUI
