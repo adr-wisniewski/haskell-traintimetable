@@ -65,7 +65,7 @@ getStyledNumber style = do
 -------------------------------------------------------------------------------
 
 
-data Action action = Action action (IO DB) | ExitAction 
+data Action action = Action action (Timetable) | ExitAction 
 data Choice action = Choice Char [Char] action | InvalidChoice
 	
 	
@@ -184,52 +184,71 @@ wyswietlTrase ((DestinationUnreachable):xs) = do
 	putStrLn "Brak polaczen"
 	wyswietlTrase xs
 
+isNum str = case reads str :: [(Integer, String)] of
+  [(_, "")] -> True
+  _         -> False
+ 
+
+ 
 	
 sprawdzDzien [] _ = False
-sprawdzDzien ((Dzien sid nazwa):xs) nr = if(sid == nr) then True
-										else sprawdzDzien xs nr		
-	
-pobierzDzien dni = do
-		
-		nr <- getStyledLine choiceStyle
-		let nrN = read nr::Int
-		if((sprawdzDzien dni nrN) == False) then do
+sprawdzDzien ((Dzien sid nazwa):xs) nr = do
+										if((isNum(nr) == True)) then do
+											let nrN = read nr::Int
+											if(nrN == sid) then True
+												else sprawdzDzien xs nr												
+										else False
+pobierzDzien dni = do		
+		nr <- getStyledLine choiceStyle				
+		if((sprawdzDzien dni nr) == False ) then do
 			putStrLn "Podaj dzien wyjazdu:"
 			pobierzDzien dni
-		else
+		else do
+			let nrN = read nr::Int
 			return (nrN)
 	
-sprawdzNumer [] _ = False
-sprawdzNumer ((Stop sid nazwa):xs) nr = if(sid == nr || nr == -1) then True
-										else sprawdzNumer xs nr
+sprawdzNumerStacji [] _ = False
+sprawdzNumerStacji ((Stop sid nazwa):xs) nr = do
+										if((isNum(nr) == True)) then do
+											let nrN = read nr::Int
+											if(sid == nrN || nrN == -1) then True
+											else sprawdzNumerStacji xs nr
+										else False
 										
-									
+sprawdzNumer :: [Char] -> Int -> Int -> Bool
+sprawdzNumer nr min max = do
+							if((isNum(nr) == True)) then do
+											let nrN = read nr::Int
+											if(nrN > min || nrN < max) then True
+											else False
+							else False
+				
 pobierzGodzine = do
 	nr <- getStyledLine choiceStyle
-	let nrN = read nr::Int
-	if(nrN > 23 || nrN < 0) then do
+	if ((sprawdzNumer nr (-1) 24) == True) then do
+			let nrN = read nr::Int
+			return nrN
+	else do
 		putStrLn "Podaj prawidlowa godzine z przedzialu 0 - 23"
 		pobierzGodzine
-	else
-		return (nrN)
 		
 pobierzMinute = do
 	nr <- getStyledLine choiceStyle
-	let nrN = read nr::Int
-	if(nrN > 60 || nrN < 0) then do
-		putStrLn "Podaj prawidlowa minute z przedzialu 0 - 59"
+	if ((sprawdzNumer nr (-1) 60) == True) then do
+			let nrN = read nr::Int
+			return nrN
+	else do
+		putStrLn "Podaj prawidlowa godzine z przedzialu 0 - 23"
 		pobierzGodzine
-	else
-		return (nrN)
 		
 pobierzNumerStacji stacje = do
-		
 		nr <- getStyledLine choiceStyle
-		let nrN = read nr::Int
-		if((sprawdzNumer stacje nrN) == False) then do
+		
+		if((sprawdzNumerStacji stacje nr) == False) then do
 			putStrLn "Podaj prawidlowy numer stacji:"
 			pobierzNumerStacji stacje
-		else
+		else do
+			let nrN = read nr::Int
 			return (nrN)
 			
 
@@ -237,7 +256,7 @@ pobierzNumerStacji stacje = do
 		
 znajdzPolaczenie context = do
 		putStrLn "Wybierz stacje poczatkowa:"
-		let stacje = getTimetableStops rozklad --getTimetableStops (getTimetable context)
+		let stacje = getTimetableStops context --getTimetableStops (getTimetable context)
 		printStops stacje
 		stop1n <- pobierzNumerStacji stacje
 		putStrLn "Wybierz stacje koncowa:"
@@ -251,7 +270,7 @@ znajdzPolaczenie context = do
 		let godzina = fromHourMinute hour 0
 		putStrLn "Podaj maksymalna ilosc przystankow:"
 		maxStops <- getStyledNumber choiceStyle
-		wyswietlTrase(findQuickestRoute rozklad stop1n stop2n (Datetime (toEnum(day)) godzina) maxStops)
+		wyswietlTrase(findQuickestRoute context stop1n stop2n (Datetime (toEnum(day)) godzina) maxStops)
 		return context
 		mainMenu context
 				
@@ -268,14 +287,14 @@ administracja context = do
 			adminMenu context
 		adminMenu context
 		
-		
-getSequence [] max = max
 
+-- Pobiera sekwencje, zeby automatycznie nadac numer nowej stacji
+getSequence [] max = (max + 1)
 getSequence ((Stop sid nazwa):xs) max = do
 	if(sid > max) then 
 		getSequence xs sid
 	else
-		getSequence xs max
+		getSequence xs max 
 		
 uiDodajStacje context = do
 	putStrLn "Podaj nazwe stacji: "
@@ -286,14 +305,13 @@ uiDodajStacje context = do
 	--let stopid = StopId numer
 	let newStop = Stop numer nazwa		
 	let newStops = stops ++ [newStop]
-	let newContext = setTimetable context (Timetable (getTimetableCourses(tt)) (getTimetableRoutes(tt)) newStops)
+	let newContext = Timetable (getTimetableCourses(tt)) (getTimetableRoutes(tt)) newStops
 	printStyledStr defaultStyle "Dodano stacje "
 	printStyledStr defaultStyle  nazwa
 	printStyledStr defaultStyle  " id: " 
 	let numerStr = show numer
 	printStyledStr defaultStyle numerStr
 	putStrLn ""
-
 	adminMenu newContext
 	
 	
@@ -306,12 +324,12 @@ usunStacje ((Stop id name):xs) sid = do
 
 uiUsunStacje context = do
 	putStrLn "Wybierz stacje do usuniecia:"
-	let rozklad = getTimetable context
+	let rozklad = context
 	let stacje = getTimetableStops rozklad --getTimetableStops (getTimetable context)
 	printStops stacje
 	stop <- pobierzNumerStacji stacje
 	let newStops = usunStacje stacje stop
-	let newContext = setTimetable context (Timetable (getTimetableCourses(rozklad)) (getTimetableRoutes(rozklad)) newStops)
+	let newContext = Timetable (getTimetableCourses(rozklad)) (getTimetableRoutes(rozklad)) newStops
 	putStrLn "Usunieto stacje"
 	--let tt = getTimetable context
 	--let stops = getTimetableStops tt
