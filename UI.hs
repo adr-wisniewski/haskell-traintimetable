@@ -135,18 +135,23 @@ printCourses ((Course cid rid time days cstops):cs) context  = do
 	printStyledStr defaultStyle ": "
 	printStyledStr defaultStyle (show time)
 	putStrLn ""
-	printCourseStops cstops context
+	printCourseStops cstops context (-1)
 	putStrLn ""
 	printCourses cs context 
 
-printCourseStops [] _ = do return ()
-printCourseStops ((CourseStop cid t):cs) context = do	
+printCourseStops [] _ _= do return ()
+printCourseStops ((CourseStop cid t):cs)  context id= do	
 	let name = (getStopNameById cid (getTimetableStops context))
-	printStyledStr defaultStyle name
-	printStyledStr defaultStyle " +"
-	printStyledStr defaultStyle (show t)
+	if(cid == id) then do
+		printStyledStr specialStyle name
+		printStyledStr specialStyle " +"
+		printStyledStr specialStyle (show t)
+	else do
+		printStyledStr defaultStyle name
+		printStyledStr defaultStyle " +"
+		printStyledStr defaultStyle (show t)
 	putStrLn ""
-	printCourseStops cs context
+	printCourseStops cs context id
 	
 printRoutes [] _ = do return ()
 printRoutes((Route id name stops):cs) context = do

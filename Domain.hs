@@ -103,6 +103,11 @@ getRouteId (Route routeId _ _) = routeId
 getRouteStops  :: Route -> [StopId]
 getRouteStops (Route _ _ stops) = stops
 
+getRouteNameById _ [] = ""
+getRouteNameById id ((Route rid name _):routes) = 
+			if(id == rid) then name
+			else getRouteNameById id routes
+
 -- COURSE
 data CourseStop = CourseStop StopId Int deriving (Show, Read)
 
