@@ -14,7 +14,7 @@ main = do
 	initUI
 	putStrLn "Train timetable v1.00" 
 	--rozklad <- loadContext "timetable.dat"
-	mainMenu (MainMenuContext Anonymous (rozklad))
+	mainMenu (MainMenuContext Anonymous (emptyTimetable))
 	writeContext rozklad "timetable.dat"
 	releaseUI
 		
@@ -270,18 +270,22 @@ akcjaDodajTrase context = do
 	let rozklad = getContextTimetable context
 	let stacje = getTimetableStops rozklad
 	let routes = getTimetableRoutes rozklad
-	nazwa <- pobierzNazwe "Podaj nazwe trasy:"
-	let numer = getRouteSequence routes 0
-	polaczenia <- dodajTraseLoop stacje [] rozklad 0	
-	let rt = Route numer nazwa polaczenia
-	putStrLn "Dodano nowa trase "
-	printStyledStr defaultStyle nazwa
-	printStyledStr defaultStyle " id: "
-	let numerStr = show numer
-	printStyledStr defaultStyle numerStr
-	putStrLn ""
-	let newTimetable = setTimetableRoutes rozklad (routes ++ [rt])
-	return (setContextTimetable context newTimetable)
+	if (null stacje)  then do
+		putStrLn "W systemie nie ma zadnych stacji"
+		return context
+	else do
+		nazwa <- pobierzNazwe "Podaj nazwe trasy:"
+		let numer = getRouteSequence routes 0
+		polaczenia <- dodajTraseLoop stacje [] rozklad 0	
+		let rt = Route numer nazwa polaczenia
+		putStrLn "Dodano nowa trase "
+		printStyledStr defaultStyle nazwa
+		printStyledStr defaultStyle " id: "
+		let numerStr = show numer
+		printStyledStr defaultStyle numerStr
+		putStrLn ""
+		let newTimetable = setTimetableRoutes rozklad (routes ++ [rt])
+		return (setContextTimetable context newTimetable)
 	
 dodajTraseLoop stacje wybraneStacje context st = do
 	if(st /= -1) then do
@@ -323,22 +327,26 @@ akcjaDodajKurs context = do
 	let routes = getTimetableRoutes rozklad
 	let courses = getTimetableCourses rozklad
 	let stops = getTimetableStops rozklad
-	putStrLn "Podaj trase:"
-	rId <- pobierzNumerTrasy routes rozklad
-	putStrLn "Podaj bazowa godzine odjazdu:"
-	h <- pobierzGodzine
-	putStrLn "Podaj bazowa minute odjazdu:"	
-	m <- pobierzMinute
-	let cid = getCourseSequence (getTimetableCourses rozklad) 0
-	cstops <- pobierzCzasyOdjazdow stops []
-	let newCourse = Course cid rId (fromHourMinute h m) [Mon, Tue] cstops
-	
-	printStyledStr defaultStyle "Dodano nowy kurs"
-	printStyledStr defaultStyle " id: "
-	let numerStr = show cid
-	printStyledStr defaultStyle numerStr	
-	let newTimetable = setTimetableCourses rozklad (courses ++ [newCourse])
-	return (setContextTimetable context newTimetable)	
+	if (null routes)  then do
+		putStrLn "W systemie nie ma zadnych stacji"
+		return context
+	else do
+		putStrLn "Podaj trase:"
+		rId <- pobierzNumerTrasy routes rozklad
+		putStrLn "Podaj bazowa godzine odjazdu:"
+		h <- pobierzGodzine
+		putStrLn "Podaj bazowa minute odjazdu:"	
+		m <- pobierzMinute
+		let cid = getCourseSequence (getTimetableCourses rozklad) 0
+		cstops <- pobierzCzasyOdjazdow stops []
+		let newCourse = Course cid rId (fromHourMinute h m) [Mon, Tue] cstops
+		
+		printStyledStr defaultStyle "Dodano nowy kurs"
+		printStyledStr defaultStyle " id: "
+		let numerStr = show cid
+		printStyledStr defaultStyle numerStr	
+		let newTimetable = setTimetableCourses rozklad (courses ++ [newCourse])
+		return (setContextTimetable context newTimetable)	
 	
 	
 usunKurs [] _ = []
