@@ -35,11 +35,11 @@ mainMenu context = do
 	putStrLn ""
 	putStrLn "Menu:"
 	menu [
-		(Choice '1' "Znajdz polaczenie" (Action znajdzPolaczenie context)),
-		(Choice '2' "Pokaz stacje" (Action uiPokazStacje context)),
-		(Choice '3' "Pokaz trasy" (Action uiPokazTrasy context)),
-		(Choice '4' "Pokaz kursy" (Action uiPokazKursy context)),
-		(Choice '5' "Administracja" (Action administracja context)),
+		(Choice '0' "Znajdz polaczenie" (Action znajdzPolaczenie context)),
+		(Choice '1' "Pokaz stacje" (Action uiPokazStacje context)),
+		(Choice '2' "Pokaz trasy" (Action uiPokazTrasy context)),
+		(Choice '3' "Pokaz kursy" (Action uiPokazKursy context)),
+		(Choice '4' "Administracja" (Action administracja context)),
 		(Choice 'q' "Koniec" ExitAction)
 		] context
 	return context
@@ -48,14 +48,15 @@ adminMenu context = do
 	putStrLn ""
 	putStrLn "Logowanie pomyslne"
 	menu [
-		(Choice '1' "Znajdz polaczenie" (Action znajdzPolaczenie context)),
-		(Choice '2' "Pokaz stacje" (Action uiPokazStacje context)),
-		(Choice '3' "Pokaz trasy" (Action uiPokazTrasy context)),
-		(Choice '4' "Pokaz kursy" (Action uiPokazKursy context)),
-		(Choice '5' "Dodaj stacje" (Action uiDodajStacje context)),
-		(Choice '6' "Usun stacje" (Action uiUsunStacje context)),
-		(Choice '7' "Dodaj trase" (Action uiDodajTrase context)),
-		(Choice '8' "Usun trase" (Action uiUsunPolaczenie context)),
+		(Choice '0' "Znajdz polaczenie" (Action znajdzPolaczenie context)),
+		(Choice '1' "Pokaz stacje" (Action uiPokazStacje context)),
+		(Choice '2' "Pokaz trasy" (Action uiPokazTrasy context)),
+		(Choice '3' "Pokaz kursy" (Action uiPokazKursy context)),
+		(Choice '4' "Dodaj stacje" (Action uiDodajStacje context)),
+		(Choice '5' "Usun stacje" (Action uiUsunStacje context)),
+		(Choice '6' "Dodaj trase" (Action uiDodajTrase context)),
+		(Choice '7' "Usun trase" (Action uiUsunTrase context)),
+		(Choice '8' "Usun kurs" (Action uiUsunKurs context)),
 		(Choice '9' "Dodaj kurs" (Action uiDodajKurs context)),
 		(Choice 'q' "Koniec" ExitAction)	
 		] context
@@ -100,6 +101,18 @@ pobierzDzien dni = do
 			let nrN = read nr::Int
 			return (nrN)
 	
+	
+--pobierzDni wybrane dni = do		
+--		printDays dniTygo
+--		nr <- getStyledLine choiceStyle				
+--		if((sprawdzDzien dni nr) == False ) then do
+--			putStrLn "Podaj dzien wyjazdu:"
+--			pobierzDzien dni
+--		else do
+--			let nrN = read nr::Int
+--			return (nrN)
+			
+			
 sprawdzNumerStacji [] _ = False
 sprawdzNumerStacji ((Stop sid nazwa):xs) nr = do
 										if((isNum(nr) == True)) then do
@@ -152,7 +165,25 @@ pobierzNumerStacji stacje = do
 		else do
 			let nrN = read nr::Int
 			return (nrN)
-			
+	
+	
+sprawdzNumerKursu [] _ = False
+sprawdzNumerKursu ((Course cid _ _ _ _):xs) nr = do
+										if((isNum(nr) == True)) then do
+											let nrN = read nr::Int
+											if(cid == nrN || nrN == -1) then True
+											else sprawdzNumerKursu xs nr
+										else False
+	
+pobierzNumerKursu kursy = do
+		nr <- getStyledLine choiceStyle		
+		if((sprawdzNumerKursu kursy nr) == False) then do
+			putStrLn "Podaj prawidlowy numer kursu:"
+			pobierzNumerKursu kursy
+		else do
+			let nrN = read nr::Int
+			return (nrN)
+	
 
 pobierzNazwe text = do
 			putStrLn text
@@ -253,9 +284,7 @@ uiDodajStacje context = do
 	putStrLn ""
 	adminMenu newContext
 	
-	
-	
-
+		
 usunStacje [] _ = []
 usunStacje ((Stop id name):xs) sid = do 
 				if(sid == id) then  ((usunStacje xs sid))
@@ -263,16 +292,30 @@ usunStacje ((Stop id name):xs) sid = do
 
 uiUsunStacje context = do
 	putStrLn "Wybierz stacje do usuniecia:"
-	let rozklad = context
-	let stacje = getTimetableStops rozklad --getTimetableStops (getTimetable context)
+
+	
+	let stacje = getTimetableStops context --getTimetableStops (getTimetable context)
 	printStops stacje
 	stop <- pobierzNumerStacji stacje
-	let newStops = usunStacje stacje stop
-	let newContext = Timetable (getTimetableCourses(rozklad)) (getTimetableRoutes(rozklad)) newStops
-	putStrLn "Usunieto stacje"
-	adminMenu newContext
-	
-	
+	if((moznaUsunacStacje (getTimetableCourses context) stop) == True) then do
+		let newStops = usunStacje stacje stop
+		let newContext = Timetable (getTimetableCourses context) (getTimetableRoutes context) newStops		
+		putStrLn "Usunieto stacje"
+		adminMenu newContext
+	else do
+		putStrLn "Nie mozna usunac stacji, poniewaz wchodzi w sklad aktywnych kursow"
+		adminMenu context
+		
+		
+		-- Course CourseId RouteId Time [Day] [CourseStop] 
+
+moznaUsunacStacje [] _ = True
+moznaUsunacStacje ((Course  _ _ _ _ stops):xs) id = (sprawdzKurs stops id) && (moznaUsunacStacje xs id)
+
+sprawdzKurs [] _ = True
+sprawdzKurs ((CourseStop sid _):xs) id = if(sid == id) then False
+											else sprawdzKurs xs id
+
 
 uiDodajTrase context = do
 	let stacje = getTimetableStops context
@@ -332,34 +375,67 @@ pobierzNumerTrasy trasy context = do
 
 
 			 --Course CourseId RouteId Time [Day] [CourseStop]  deriving (Show, Read)
-	
+
+
+			 
 uiDodajKurs context = do
-	let trasy = getTimetableRoutes rozklad
+	let routes = getTimetableRoutes context
 	let courses = getTimetableCourses context
+	let stops = getTimetableStops context
 	putStrLn "Podaj trase:"
-	rId <- pobierzNumerTrasy trasy context
+	rId <- pobierzNumerTrasy routes context
 	putStrLn "Podaj bazowa godzine odjazdu:"
 	h <- pobierzGodzine
 	putStrLn "Podaj bazowa minute odjazdu:"	
 	m <- pobierzMinute
 	let cid = getCourseSequence (getTimetableCourses context) 0
-	let czasy = pobierzCzasyOdjazdow stacje []
+	cstops <- pobierzCzasyOdjazdow stops []
+	let newCourse = Course cid rId (fromHourMinute h m) [Mon, Tue] cstops
 	
 	printStyledStr defaultStyle "Dodano nowy kurs"
 	printStyledStr defaultStyle " id: "
 	let numerStr = show cid
-	printStyledStr defaultStyle numerStr
-	adminMenu context
+	printStyledStr defaultStyle numerStr	
+	let newContext = Timetable (courses ++ [newCourse]) (getTimetableRoutes context) (getTimetableStops context)
+	adminMenu newContext
 	
-
-	--let newContext = Timetable (courses ++ [course]) (getTimetableRoutes context) (getTimetableStops context)
-	adminMenu context
 	
-uiUsunPolaczenie context = do
+usunKurs [] _ = []
+usunKurs((Course id rid t d stops):xs) sid = do 
+				if(sid == id) then  ((usunKurs xs sid))
+				else  (Course id rid t d stops) : (usunKurs xs sid)
+		
+uiUsunKurs context = do
+	let courses = getTimetableCourses context
+	printCourses courses context
+	course <- pobierzNumerKursu courses
+	let newCourses = usunKurs courses course
+	let newContext = Timetable newCourses (getTimetableRoutes context) (getTimetableStops context)
 	return context
 
 	
-	
 
+usunTrase [] _ = []
+usunTrase((Route id nazwa stops):xs) sid = do 
+				if(sid == id) then  ((usunTrase xs sid))
+				else  (Route id nazwa stops) : (usunTrase xs sid)
+		
+uiUsunTrase context = do
+	let routes = getTimetableRoutes context	
+	rid <- pobierzNumerTrasy routes context
+	if((moznaUsunacTrase (getTimetableCourses context) rid) == True) then do
+		let newRoutes = usunTrase routes rid
+		let newContext = Timetable (getTimetableCourses context) newRoutes (getTimetableStops context)
+		putStrLn "Usunieto stacje"
+		adminMenu newContext
+	else do
+		putStrLn "Nie mozna usunac trasy, poniewaz wchodzi w sklad aktywnych kursow"
+		adminMenu context
 	
+	
+moznaUsunacTrase [] _ = True
+moznaUsunacTrase ((Course  _ rid _ _ _):xs) id = if(rid == id) then False
+											   else (moznaUsunacTrase xs id) 
+
+
 	
