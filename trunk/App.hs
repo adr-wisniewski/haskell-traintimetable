@@ -6,15 +6,21 @@ import Users
 import UI
 import Data.List
 import Data.Maybe
-
+import Prelude hiding ( catch )
+import Control.Exception
+import System.Environment
+import System.IO
+import System.Exit
 
 -------------------------------------------------------------------------------
 -- ENTRY POINT
 -------------------------------------------------------------------------------
+
+
 main = do	
 	initUI
 	putStrLn "Train timetable v1.00" 
-	--rozklad <- loadContext "timetable.dat"
+	rozklad <- loadContext "timetable.dat"
 	--mainMenu (MainMenuContext Anonymous (emptyTimetable))
 	mainMenu (MainMenuContext Anonymous (rozklad))
 	writeContext rozklad "timetable.dat"
@@ -27,9 +33,10 @@ writeContext context fname = do
 	writeFile fname (show context)
 
 loadContext fname = do 
-	line <- readFile fname
+	line <- readFile fname	
 	let context = read line :: Timetable
 	return context
+	
 					 				 
 -------------------------------------------------------------------------------
 -- MAIN MENU
@@ -369,7 +376,7 @@ akcjaDodajKurs context = do
 		m <- pobierzMinute
 		let cid = getCourseSequence (getTimetableCourses rozklad) 0
 		cstops <- pobierzCzasyOdjazdow stops []
-		let newCourse = Course cid rId (fromHourMinute h m) [Mon, Tue] cstops
+		let newCourse = Course cid rId (fromHourMinute h m) [Mon, Tue, Wed, Thu, Fri, Sat, Sun] cstops
 		
 		printStyledStr defaultStyle "Dodano nowy kurs"
 		printStyledStr defaultStyle " id: "
