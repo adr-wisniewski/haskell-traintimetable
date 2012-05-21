@@ -3,7 +3,7 @@ import System.Console.ANSI
 import DummyData
 import Domain
 import Data.Char
-import Users
+import Users 
 import Styles
 
 
