@@ -13,8 +13,8 @@ import Data.Maybe
 main = do	
 	initUI
 	putStrLn "Train timetable v1.00" 
-	rozklad <- loadContext "timetable.dat"
-	mainMenu (MainMenuContext Anonymous (emptyTimetable))
+	--rozklad <- loadContext "timetable.dat"
+	mainMenu (MainMenuContext Anonymous (rozklad))
 	writeContext rozklad "timetable.dat"
 	releaseUI
 		
@@ -55,6 +55,7 @@ mainMenu mainMenuContext = do
 unauthorizedMainMenu mainMenuContext = do 
 	menu [
 		(Choice '1' "Znajdz polaczenie" (Action (znajdzPolaczenie mainMenuContext))),
+		(Choice '2' "Pokaz rozklad" (Action (uiPokazRozklad mainMenuContext))),
 		(Spacer),
 		(Choice 'l' "Zaloguj" (Action (login mainMenuContext))),
 		(Choice 'q' "Koniec" ExitAction)
@@ -139,7 +140,51 @@ pokazKursy context = do
 		putStrLn "Kursy:"
 		printCourses courses timetable
 		
-	return context		
+	return context	
+
+uiPokazRozklad (MainMenuContext user context)  = do
+
+		putStrLn "Wybierz stacje: "
+		let stacje = getTimetableStops context
+		printStops stacje
+		sid <- pobierzNumerStacji stacje
+		printStyledStr defaultStyle "Rozklad jazdy dla stacji: " 
+		let name = (getStopNameById sid (getTimetableStops context))
+		printStyledStr defaultStyle  name
+		putStrLn ""
+		putStrLn ""
+		pokazRozklad (getTimetableCourses context) sid context
+		return (MainMenuContext user context)
+		
+pokazRozklad [] _ _ = do
+		putStrLn ""
+		
+pokazRozklad ((Course cid rt t d stops):xs) sid context = do
+
+
+		if((znajdzKursy stops sid) == True) then do
+			printStyledStr defaultStyle "Poczatek trasy: " 
+			printStyledStr defaultStyle (show t)
+			putStrLn ""
+			
+			let name = (getRouteNameById sid (getTimetableRoutes context))
+			printStyledStr defaultStyle "Pociag: " 
+			printStyledStr defaultStyle (show name)
+			putStrLn ""
+			
+			printCourseStops stops context sid
+			printStyledStr defaultStyle "-----------------------------------------------------"
+			putStrLn ""
+			pokazRozklad xs sid context			
+			
+		else do
+			pokazRozklad xs sid context
+	
+			
+znajdzKursy [] _  = False
+znajdzKursy ((CourseStop sid t):xs) id  = if(sid == id) then True
+											   else (znajdzKursy xs id)
+		
 	
 znajdzPolaczenie context = do
 		let timetable = getContextTimetable context
