@@ -147,6 +147,9 @@ getCourseStopsAfter :: Course -> StopId -> [CourseStop]
 getCourseStopsAfter course stopId = dropWhile (\x -> getCourseStopId x == stopId) $ dropWhile (\x -> getCourseStopId x /= stopId) $  getCourseStops course
 
 data Timetable = Timetable [Course] [Route] [Stop] deriving (Show, Read)
+
+emptyTimetable = Timetable [] [] []
+
 getTimetableCourses :: Timetable -> [Course]
 getTimetableCourses (Timetable courses _ _) = courses
 
@@ -158,6 +161,15 @@ getTimetableStops (Timetable _ _ stops) = stops
 
 getTimetableStopsCount :: Timetable -> Int
 getTimetableStopsCount (Timetable _ _ stops) = length stops
+
+setTimetableCourses :: Timetable -> [Course] -> Timetable
+setTimetableCourses (Timetable _ routes stops) courses = (Timetable courses routes stops)
+
+setTimetableRoutes :: Timetable -> [Route] -> Timetable
+setTimetableRoutes (Timetable courses _ stops) routes = (Timetable courses routes stops)
+
+setTimetableStops :: Timetable -> [Stop] -> Timetable
+setTimetableStops (Timetable courses routes _) stops = (Timetable courses routes stops)
 
 isValidStop timatable stopId = isJust $ find (\s -> getStopId s == stopId) $ getTimetableStops timatable
 

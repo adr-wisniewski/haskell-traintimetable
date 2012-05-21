@@ -3,195 +3,147 @@ import DummyData
 import Domain
 import Data.Char
 import Users
-import Print
-import Styles
 import UI
+import Data.Maybe
 
+
+-------------------------------------------------------------------------------
+-- ENTRY POINT
+-------------------------------------------------------------------------------
 main = do	
-
 	initUI
 	putStrLn "Train timetable v1.00" 
-	--rozklad <- loadContext "timetable.dat"
-	mainMenu rozklad
+	rozklad <- loadContext "timetable.dat"
+	mainMenu (MainMenuContext Anonymous (emptyTimetable))
 	writeContext rozklad "timetable.dat"
 	releaseUI
 		
-
-writeContext :: Timetable -> String -> IO ()
-writeContext context fname = do writeFile fname (show context)
+-------------------------------------------------------------------------------
+-- SAVING / LOADING
+-------------------------------------------------------------------------------		
+writeContext context fname = do 
+	writeFile fname (show context)
 
 loadContext fname = do 
-                     line <- readFile fname
-                     let context = read line :: Timetable
-                     return context
-					 
+	line <- readFile fname
+	let context = read line :: Timetable
+	return context
+					 				 
+-------------------------------------------------------------------------------
+-- MAIN MENU
+-------------------------------------------------------------------------------	
+data MainMenuContext = MainMenuContext User Timetable
+isAnonymous (MainMenuContext Anonymous _) = True
+isAnonymous _ = False
 
-					 
-					 
-					 
+getContextTimetable (MainMenuContext _ timetable) = timetable
+setContextTimetable (MainMenuContext user _) timetable = (MainMenuContext user timetable)
+	
+mainMenu mainMenuContext = do
+	let menu = if isAnonymous mainMenuContext 
+		then unauthorizedMainMenu 
+		else authorizedMainMenu
 
--- Menu glowne - dla kazdego uzytkownika
-mainMenu context = do
-	putStrLn ""
-	putStrLn "Menu:"
+	maybeUpdatedContext <- menu mainMenuContext
+
+	if isJust maybeUpdatedContext then
+		mainMenu (fromJust maybeUpdatedContext) -- loop again
+	else
+		return mainMenuContext -- exit action fired
+	
+		
+unauthorizedMainMenu mainMenuContext = do 
 	menu [
-		(Choice '1' "Znajdz polaczenie" (Action znajdzPolaczenie context)),
-		(Choice '2' "Pokaz stacje" (Action uiPokazStacje context)),
-		(Choice '3' "Pokaz trasy" (Action uiPokazTrasy context)),
-		(Choice '4' "Pokaz kursy" (Action uiPokazKursy context)),
-		(Choice '5' "Administracja" (Action administracja context)),
+		(Choice '1' "Znajdz polaczenie" (Action (znajdzPolaczenie mainMenuContext))),
+		(Spacer),
+		(Choice 'l' "Zaloguj" (Action (login mainMenuContext))),
 		(Choice 'q' "Koniec" ExitAction)
-		] context
-	return context
-
-adminMenu context = do
-	putStrLn ""
-	putStrLn "Menu administracyjne:"
+		]
+	
+authorizedMainMenu mainMenuContext = do
 	menu [
+		(Choice '1' "Znajdz polaczenie" (Action (znajdzPolaczenie mainMenuContext))),
+		(Spacer),
+		(Choice '2' "Pokaz stacje" (Action (pokazStacje mainMenuContext))),
+		(Choice '3' "Pokaz trasy" (Action (pokazTrasy mainMenuContext))),
+		(Choice '4' "Pokaz kursy" (Action (pokazKursy mainMenuContext))),
+		(Spacer),
+		(Choice '5' "Dodaj stacje" (Action (dodajStacje mainMenuContext))),
+		(Choice '6' "Usun stacje" (Action (usunStacje mainMenuContext))),
+		(Spacer),
+		(Choice '7' "Dodaj trase" (Action (dodajTrase mainMenuContext))),
+		(Choice '8' "Usun trase" (Action (usunTrase mainMenuContext))),
+		(Spacer),
+		--(Choice '9' "Dodaj kurs" (Action uiDodajKurs context)),
+		--(Spacer),
+		(Choice 'l' "Wyloguj" (Action (logout mainMenuContext))),
+		(Choice 'q' "Koniec" ExitAction)
+		]
+	
+-------------------------------------------------------------------------------
+-- ACTIONS - AUTHENTICATION
+-------------------------------------------------------------------------------		
+login (MainMenuContext user timetable) = do
+	putStrLn "Podaj nazwe uzytkownika:"
+	loginStr <- getStyledLine choiceStyle
+	putStrLn "Podaj haslo"
+	passStr <- getStyledLine choiceStyle
+	
+	let supposedUser = User loginStr passStr
+	if tryLogin supposedUser then do
+		putStrLn "Zalogowano"
+		return (MainMenuContext supposedUser timetable)
+	else do
+		putStrLn "Bledny login lub haslo"
+		return (MainMenuContext user timetable)
+	
+logout (MainMenuContext _ timetable) = do
+	putStrLn "Wylogowano"
+	return (MainMenuContext Anonymous timetable)
 
-		(Choice '1' "Dodaj stacje" (Action uiDodajStacje context)),
-		(Choice '2' "Usun stacje" (Action uiUsunStacje context)),
-		(Choice '3' "Dodaj trase" (Action uiDodajTrase context)),
-		(Choice '4' "Usun trase" (Action uiUsunTrase context)),
-		(Choice '5' "Usun kurs" (Action uiUsunKurs context)),
-		(Choice '6' "Dodaj kurs" (Action uiDodajKurs context)),
-		(Choice 'q' "Koniec" ExitAction)	
-		] context
+-------------------------------------------------------------------------------
+-- ACTIONS - QUERIES
+-------------------------------------------------------------------------------			
+pokazStacje context = do
+	let timetable = (getContextTimetable context)
+	let stacje = getTimetableStops timetable
+	
+	if null stacje then do
+		putStrLn "Nie ma stacji!"
+	else do
+		putStrLn "Stacje:"
+		printStops stacje
+		
 	return context
-							 
-
-
--- Funkcja wyswietlajaca wynik dzialania findQuickestRoute
-wyswietlTrase :: [TravelRoute] -> IO ()
-wyswietlTrase ((TravelRoute (TravelLeg stopId _ _ _ _ _)):xs) = do
-	putStrLn "Trasa1"
-	wyswietlTrase xs
-	
-wyswietlTrase ((TooFewStops):xs) = do
-	putStrLn "Zbyt malo przystankow"
-	wyswietlTrase xs
-	
-wyswietlTrase ((DestinationUnreachable):xs) = do
-	putStrLn "Brak polaczen"
-	wyswietlTrase xs
-
-isNum str = case reads str :: [(Integer, String)] of
-  [(_, "")] -> True
-  _         -> False
- 
-
- 
-	
-sprawdzDzien [] _ = False
-sprawdzDzien ((Dzien sid nazwa):xs) nr = do
-										if((isNum(nr) == True)) then do
-											let nrN = read nr::Int
-											if(nrN == sid) then True
-												else sprawdzDzien xs nr												
-										else False
-pobierzDzien dni = do		
-		nr <- getStyledLine choiceStyle				
-		if((sprawdzDzien dni nr) == False ) then do
-			putStrLn "Podaj dzien wyjazdu:"
-			pobierzDzien dni
-		else do
-			let nrN = read nr::Int
-			return (nrN)
-	
-	
---pobierzDni wybrane dni = do		
---		printDays dniTygo
---		nr <- getStyledLine choiceStyle				
---		if((sprawdzDzien dni nr) == False ) then do
---			putStrLn "Podaj dzien wyjazdu:"
---			pobierzDzien dni
---		else do
---			let nrN = read nr::Int
---			return (nrN)
-			
-			
-sprawdzNumerStacji [] _ = False
-sprawdzNumerStacji ((Stop sid nazwa):xs) nr = do
-										if((isNum(nr) == True)) then do
-											let nrN = read nr::Int
-											if(sid == nrN || nrN == -1) then True
-											else sprawdzNumerStacji xs nr
-										else False
-										
-sprawdzNumer :: [Char] -> Int -> Int -> Bool
-sprawdzNumer nr min max = do
-							if((isNum(nr) == True)) then do
-											let nrN = read nr::Int
-											if(nrN > min && nrN < max) then True
-											else False
-							else False
 				
-pobierzGodzine = do
-	nr <- getStyledLine choiceStyle
-	if ((sprawdzNumer nr (-1) 24) == True) then do
-			let nrN = read nr::Int
-			return nrN
+pokazTrasy context = do
+	let timetable = (getContextTimetable context)
+	let trasy = getTimetableRoutes timetable
+	
+	if null trasy then do
+		putStrLn "Nie ma tras!"
 	else do
-		putStrLn "Podaj prawidlowa godzine z przedzialu 0 - 23"
-		pobierzGodzine
-		
-pobierzMinute = do
-	nr <- getStyledLine choiceStyle
-	if ((sprawdzNumer nr (-1) 60) == True) then do
-			let nrN = read nr::Int
-			return nrN
-	else do
-		putStrLn "Podaj prawidlowa minute z przedzialu 0 - 59"
-		pobierzMinute
-		
-pobierzNumer text= do
-	nr <- getStyledLine choiceStyle
-	if ((sprawdzNumer nr (-1) 100000) == True) then do
-			let nrN = read nr::Int
-			return nrN
-	else do
-		putStrLn text
-		pobierzNumer text
-		
-pobierzNumerStacji stacje = do
-		nr <- getStyledLine choiceStyle
-		
-		if((sprawdzNumerStacji stacje nr) == False) then do
-			putStrLn "Podaj prawidlowy numer stacji:"
-			pobierzNumerStacji stacje
-		else do
-			let nrN = read nr::Int
-			return (nrN)
+		putStrLn "Trasy:"
+		printRoutes trasy timetable
 	
-	
-sprawdzNumerKursu [] _ = False
-sprawdzNumerKursu ((Course cid _ _ _ _):xs) nr = do
-										if((isNum(nr) == True)) then do
-											let nrN = read nr::Int
-											if(cid == nrN || nrN == -1) then True
-											else sprawdzNumerKursu xs nr
-										else False
-	
-pobierzNumerKursu kursy = do
-		nr <- getStyledLine choiceStyle		
-		if((sprawdzNumerKursu kursy nr) == False) then do
-			putStrLn "Podaj prawidlowy numer kursu:"
-			pobierzNumerKursu kursy
-		else do
-			let nrN = read nr::Int
-			return (nrN)
-	
+	return context
 
-pobierzNazwe text = do
-			putStrLn text
-			nazwa <- getStyledLine choiceStyle
-			if(nazwa == "") then 
-				pobierzNazwe text
-			else
-				return nazwa
-
+pokazKursy context = do
+	let timetable = (getContextTimetable context)
+	let courses = getTimetableCourses timetable
+	
+	if null courses then do
+		putStrLn "Nie ma kursow!"
+	else do
+		putStrLn "Kursy:"
+		printCourses courses timetable
 		
+	return context		
+	
 znajdzPolaczenie context = do
+		putStrLn "Wybierz stacje poczatkowa:"
+		return context
+		{-
 		putStrLn "Wybierz stacje poczatkowa:"
 		let stacje = getTimetableStops context --getTimetableStops (getTimetable context)
 		printStops stacje
@@ -210,37 +162,89 @@ znajdzPolaczenie context = do
 		wyswietlTrase(findQuickestRoute context stop1n stop2n (Datetime (toEnum(day)) godzina) maxStops)
 		return context
 		mainMenu context
-		
-uiPokazStacje context = do
-	let stacje = getTimetableStops context
-	printStops stacje
-	mainMenu context
-				
-uiPokazTrasy context = do
-	let trasy = getTimetableRoutes context
-	printRoutes trasy context
-	mainMenu context
-
-uiPokazKursy context = do
-	let courses = getTimetableCourses context 
-	printCourses courses context
-	mainMenu context	
+		-}
 	
-administracja context = do
-		putStrLn "Podaj nazwe uzytkownika:"
-		login <- getStyledLine choiceStyle
-		putStrLn "Podaj haslo"
-	 	pass <- getStyledLine choiceStyle
-		ok <- Users.login (Users.User login pass)
-		if (ok == True) then 						
-			adminMenu context					
-		else do
-			putStrLn "Bledny login lub haslo"
-			mainMenu context
-		mainMenu context
+-------------------------------------------------------------------------------
+-- ACTIONS - ADMINISTRATION - STOPS
+-------------------------------------------------------------------------------	
+dodajStacje context = do
+	let timetable = getContextTimetable context
+	nazwa <- pobierzNazwe "Podaj nazwe stacji"
+	let stops = getTimetableStops timetable
+	let numer = getStopSequence stops 0
+	let newStop = Stop numer nazwa		
+	let newStops = stops ++ [newStop]
+	let newTimetable = setTimetableStops timetable newStops
+	printStyledStr defaultStyle "Dodano stacje "
+	printStyledStr defaultStyle  nazwa
+	printStyledStr defaultStyle  " id: " 
+	let numerStr = show numer
+	printStyledStr defaultStyle numerStr
+	putStrLn ""
+	return (setContextTimetable context newTimetable)
+	
+usunStacje context = do
+	putStrLn "Wybierz stacje do usuniecia:"
+	let rozklad = getContextTimetable context
+	let stacje = getTimetableStops rozklad
+	
+	printStops stacje
+	stop <- pobierzNumerStacji stacje
+
+	if((moznaUsunacStacje (getTimetableCourses rozklad) stop) == True) then do
+		let newStops = filtrujStacje stacje stop
+		let newTimetable = setTimetableStops rozklad newStops	
+		putStrLn "Usunieto stacje"
+		return (setContextTimetable context newTimetable)
+	else do
+		putStrLn "Nie mozna usunac stacji, poniewaz wchodzi w sklad aktywnych kursow"
+		return context
 		
 
--- Pobiera sekwencje, zeby automatycznie nadac numer nowej stacji
+filtrujStacje stacje idStacji = filter (\s -> getStopId s /= idStacji) stacje
+
+moznaUsunacStacje [] _ = True
+moznaUsunacStacje ((Course  _ _ _ _ stops):xs) id = (sprawdzKurs stops id) && (moznaUsunacStacje xs id)
+
+-------------------------------------------------------------------------------
+-- ACTIONS - ADMINISTRATION - ROUTES
+-------------------------------------------------------------------------------	
+dodajTrase context = do
+	let rozklad = getContextTimetable context
+	let stacje = getTimetableStops rozklad
+	let routes = getTimetableRoutes rozklad
+	nazwa <- pobierzNazwe "Podaj nazwe trasy:"
+	let numer = getRouteSequence routes 0
+	polaczenia <- dodajTraseLoop stacje [] rozklad 0	
+	let rt = Route numer nazwa polaczenia
+	putStrLn "Dodano nowa trase "
+	printStyledStr defaultStyle nazwa
+	printStyledStr defaultStyle " id: "
+	let numerStr = show numer
+	printStyledStr defaultStyle numerStr
+	putStrLn ""
+	let newTimetable = setTimetableRoutes rozklad (routes ++ [rt])
+	return (setContextTimetable context newTimetable)
+	
+dodajTraseLoop stacje wybraneStacje context st = do
+	if(st /= -1) then do
+		putStrLn "Podaj stacje wchodzaca w sklad kursu, lub -1, jesli koniec:"
+		printStops (filtrujStacje stacje st)
+		st <- pobierzNumerStacji stacje		
+		dodajTraseLoop (filtrujStacje stacje st) ([st] ++ wybraneStacje) context st
+	else
+		return (wybraneStacje)
+	
+usunTrase context = do
+	return context
+	
+sprawdzKurs [] _ = True
+sprawdzKurs ((CourseStop sid _):xs) id = if(sid == id) then False
+											else sprawdzKurs xs id
+	
+-------------------------------------------------------------------------------
+-- ID GENERATION
+-------------------------------------------------------------------------------	
 getStopSequence [] max = (max + 1)
 getStopSequence ((Stop sid nazwa):xs) max = do
 	if(sid > max) then 
@@ -261,86 +265,31 @@ getCourseSequence ((Course cid _ _ _ _):xs) max = do
 		getCourseSequence xs cid
 	else
 		getCourseSequence xs max 	
+	
+	
+{-	
+			 
+-- Funkcja wyswietlajaca wynik dzialania findQuickestRoute
+wyswietlTrase :: [TravelRoute] -> IO ()
+wyswietlTrase ((TravelRoute (TravelLeg stopId _ _ _ _ _)):xs) = do
+	putStrLn "Trasa1"
+	wyswietlTrase xs
+	
+wyswietlTrase ((TooFewStops):xs) = do
+	putStrLn "Zbyt malo przystankow"
+	wyswietlTrase xs
+	
+wyswietlTrase ((DestinationUnreachable):xs) = do
+	putStrLn "Brak polaczen"
+	wyswietlTrase xs
+
+
+
+-- Pobiera sekwencje, zeby automatycznie nadac numer nowej stacji
+
 		
 		
-uiDodajStacje context = do
 
-	nazwa <- pobierzNazwe "Podaj nazwe stacji"
-	let tt = rozklad --getTimetable context
-	let stops = getTimetableStops tt
-	let numer = getStopSequence stops 0
-	--let stopid = StopId numer
-	let newStop = Stop numer nazwa		
-	let newStops = stops ++ [newStop]
-	let newContext = Timetable (getTimetableCourses(tt)) (getTimetableRoutes(tt)) newStops
-	printStyledStr defaultStyle "Dodano stacje "
-	printStyledStr defaultStyle  nazwa
-	printStyledStr defaultStyle  " id: " 
-	let numerStr = show numer
-	printStyledStr defaultStyle numerStr
-	putStrLn ""
-	adminMenu newContext
-	
-		
-usunStacje [] _ = []
-usunStacje ((Stop id name):xs) sid = do 
-				if(sid == id) then  ((usunStacje xs sid))
-				else  (Stop id name) : (usunStacje xs sid)
-
-uiUsunStacje context = do
-	putStrLn "Wybierz stacje do usuniecia:"
-
-	
-	let stacje = getTimetableStops context --getTimetableStops (getTimetable context)
-	printStops stacje
-	stop <- pobierzNumerStacji stacje
-	if((moznaUsunacStacje (getTimetableCourses context) stop) == True) then do
-		let newStops = usunStacje stacje stop
-		let newContext = Timetable (getTimetableCourses context) (getTimetableRoutes context) newStops		
-		putStrLn "Usunieto stacje"
-		adminMenu newContext
-	else do
-		putStrLn "Nie mozna usunac stacji, poniewaz wchodzi w sklad aktywnych kursow"
-		adminMenu context
-		
-		
-		-- Course CourseId RouteId Time [Day] [CourseStop] 
-
-moznaUsunacStacje [] _ = True
-moznaUsunacStacje ((Course  _ _ _ _ stops):xs) id = (sprawdzKurs stops id) && (moznaUsunacStacje xs id)
-
-sprawdzKurs [] _ = True
-sprawdzKurs ((CourseStop sid _):xs) id = if(sid == id) then False
-											else sprawdzKurs xs id
-
-
-uiDodajTrase context = do
-	let stacje = getTimetableStops context
-	let routes = getTimetableRoutes context
-	nazwa <- pobierzNazwe "Podaj nazwe trasy:"
-	let numer = getRouteSequence routes 0
-	polaczenia <- uiDodajTraseLoop stacje [] context 0	
-	let rt = Route numer nazwa polaczenia
-	putStrLn "Dodano nowa trase "
-	printStyledStr defaultStyle nazwa
-	printStyledStr defaultStyle " id: "
-	let numerStr = show numer
-	printStyledStr defaultStyle numerStr
-	putStrLn ""
-	let newContext = Timetable (getTimetableCourses context) (routes ++ [rt]) (getTimetableStops context)
-	adminMenu newContext
-	
-
-	
-uiDodajTraseLoop stacje wybraneStacje context st = do
-	
-	if(st /= -1) then do
-		putStrLn "Podaj stacje wchodzaca w sklad kursu, lub -1, jesli koniec:"
-		printStops (usunStacje stacje st)
-		st <- pobierzNumerStacji stacje		
-		uiDodajTraseLoop (usunStacje stacje st) ([st] ++ wybraneStacje) context st
-	else
-		return (wybraneStacje)
 
 		
 pobierzCzasyOdjazdow [] wybrane = do
@@ -410,7 +359,7 @@ uiUsunKurs context = do
 	let newContext = Timetable newCourses (getTimetableRoutes context) (getTimetableStops context)
 	return context
 
-	
+
 
 usunTrase [] _ = []
 usunTrase((Route id nazwa stops):xs) sid = do 
@@ -428,11 +377,10 @@ uiUsunTrase context = do
 	else do
 		putStrLn "Nie mozna usunac trasy, poniewaz wchodzi w sklad aktywnych kursow"
 		adminMenu context
-	
-	
+
 moznaUsunacTrase [] _ = True
 moznaUsunacTrase ((Course  _ rid _ _ _):xs) id = if(rid == id) then False
 											   else (moznaUsunacTrase xs id) 
 
-
 	
+-}
