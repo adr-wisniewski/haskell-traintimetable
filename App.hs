@@ -25,10 +25,12 @@ main = do
 	writeContext timetable "timetable.dat" `catch` writehandler
 	releaseUI
 	
+readhandler :: IOError -> IO Timetable
 readhandler error = do
 	putStrLn ("Couldnt read data file! Using empty timetable! " ++ show error)
 	return emptyTimetable
 	
+writehandler :: IOError -> IO ()
 writehandler error = do
 	putStrLn ("Couldnt write data file! Changes will not be saved! " ++ show error)
 	return ()
@@ -43,7 +45,6 @@ loadContext fname = do
 	line <- readFile fname	
 	let context = read line :: Timetable
 	return context
-	
 					 				 
 -------------------------------------------------------------------------------
 -- MAIN MENU
