@@ -65,11 +65,30 @@ getStyledNumber style = do
 -------------------------------------------------------------------------------
 
 
-data Action context = Action (IO context) | ExitAction 
-data Choice context = Choice Char [Char] (Action context) | InvalidChoice
+data Action action = Action action (IO DB) | ExitAction 
+data Choice action = Choice Char [Char] action | InvalidChoice
 	
-menu :: [Choice (Action context)] -> IO String
-menu choices = do
+	
+	
+--menu :: [Choice (Action)] -> (IO DB) -> IO String
+
+printStops [] = do return ()
+printStops((Stop key name):cs) = do
+	printStyledStr choiceStyle (show key)
+	printStyledStr specialStyle ") "
+	putStrLn name
+	printStops cs
+	
+	
+	
+printDays [] = do return ()
+printDays((Dzien key name):cs) = do
+	printStyledStr choiceStyle (show key)
+	printStyledStr specialStyle ") "
+	putStrLn name
+	printDays cs
+			
+menu choices context = do
 	printChoices choices
 	putStr "Enter choice: "
 	input <- getStyledLine choiceStyle
@@ -93,12 +112,11 @@ menu choices = do
 				
 		processChoice InvalidChoice = do
 			printStyledStrLn errorStyle "Invalid choice. Try again!"
-			menu choices
+			menu choices context
 			
-		processChoice (Choice _ _ (Action action)) = do
-			action
+		processChoice (Choice _ _ (Action action context)) = do
+			action context
 			return ""
-			--menu choices
 		processChoice (Choice _ _ ExitAction) = do
 			return ""
 		
@@ -111,71 +129,117 @@ getChoiceValue sid = do
 	return sid
 
 -- Funkcja zamieniajaca liste stacji na menu
-stacjeMenu _ [] = []
-stacjeMenu context ((Stop sid name):xs)  = (Choice (chr(sid + 96)) name (Action (getChoiceValue (chr(sid))))) : (stacjeMenu context xs)
+--stacjeMenu _ [] = []
+--stacjeMenu context ((Stop sid name):xs)  = (Choice (chr(sid + 96)) name (Action (getChoiceValue chr(sid)))) : (stacjeMenu context xs)
 
 
+
+		
 
 -- Menu glowne - dla kazdego uzytkownika
 mainMenu context = do
 	menu [
-		(Choice '1' "Znajdz polaczenie" (Action (znajdzPolaczenie context))),
-		(Choice '2' "Administracja" (Action (administracja context))),
+		(Choice '1' "Znajdz polaczenie" (Action znajdzPolaczenie context)),
+		(Choice '2' "Administracja" (Action administracja context)),
 		(Choice 'q' "Koniec" ExitAction)
-		]
+		] context
 	return context
 
 adminMenu context = do
 	putStrLn "Logowanie pomyslne"
 	menu [
-		(Choice '1' "Znajdz polaczenie" (Action (znajdzPolaczenie context))),
-		(Choice '2' "Dodaj stacje" (Action (uiDodajStacje context))),
-		(Choice '3' "Usun stacje" (Action (uiUsunStacje context))),
-		(Choice '4' "Dodaj polaczenie" (Action (uiDodajPolaczenie context))),
-		(Choice '5' "Usun polaczenie" (Action (uiUsunPolaczenie context))),
+		(Choice '1' "Znajdz polaczenie" (Action znajdzPolaczenie context)),
+		(Choice '2' "Dodaj stacje" (Action uiDodajStacje context)),
+		(Choice '3' "Usun stacje" (Action uiUsunStacje context)),
+		(Choice '4' "Dodaj polaczenie" (Action uiDodajPolaczenie context)),
+		(Choice '5' "Usun polaczenie" (Action uiUsunPolaczenie context)),
 		(Choice 'q' "Koniec" ExitAction)	
-		]
+		] context
 	return ()
 		
 -- Lista dni tygodnia do menu. Niestety, nie udalo mi sie tego zrobic przez wyciagniecie z Enum
-dniTygodnia  = [(Choice '1' "Poniedzialek" (Action (getChoiceValue  "1" ))),
-			   (Choice '2' "Wtorek" (Action  (getChoiceValue  "2"))),
-			   (Choice '3' "Sroda" (Action  (getChoiceValue  "3"))),
-			   (Choice '4' "Czwartek" (Action  (getChoiceValue  "4"))),
-			   (Choice '5' "Piatek" (Action  (getChoiceValue  "5"))),
-			   (Choice '6' "Sobota" (Action  (getChoiceValue  "6"))),
-			   (Choice '7' "Niedziela" (Action  (getChoiceValue  "7")))]
+
+data Dzien = Dzien Int String
+dniTygodnia  = [(Dzien 1 "Poniedzialek"),
+			   (Dzien 2 "Wtorek" ),
+			   (Dzien 3 "Sroda" ),
+			   (Dzien 4 "Czwartek" ),
+			   (Dzien 5 "Piatek" ),
+			   (Dzien 6 "Sobota" ),
+			   (Dzien 7 "Niedziela")]
 
 
 -- Funkcja wyswietlajaca wynik dzialania findQuickestRoute
 wyswietlTrase :: [TravelRoute] -> IO ()
-wyswietlTrase _ = do
-			putStrLn "Brak trasy"
---wyswietlTrase TooFewStops = do 
---		putStrLn "Zbyt malo przystankow"
---wyswietlTrase DestinationUnreachable = do
---		putStrLn "Brak polaczen"
---wyswietlTrase [(TravelRoute (TravelLeg stopId _ _ _ _ _))] = do
---		putStrLn "Znaleziono trase"
+wyswietlTrase ((TravelRoute (TravelLeg stopId _ _ _ _ _)):xs) = do
+	putStrLn "Trasa1"
+	wyswietlTrase xs
+	
+wyswietlTrase ((TooFewStops):xs) = do
+	putStrLn "Zbyt malo przystankow"
+	wyswietlTrase xs
+	
+wyswietlTrase ((DestinationUnreachable):xs) = do
+	putStrLn "Brak polaczen"
+	wyswietlTrase xs
+
+	
+sprawdzDzien [] _ = False
+sprawdzDzien ((Dzien sid nazwa):xs) nr = if(sid == nr) then True
+										else sprawdzDzien xs nr		
+	
+pobierzDzien dni = do
 		
+		nr <- getStyledLine choiceStyle
+		let nrN = read nr::Int
+		if((sprawdzDzien dni nrN) == False) then do
+			putStrLn "Podaj dzien wyjazdu:"
+			pobierzDzien dni
+		else
+			return (nrN)
+	
+sprawdzNumer [] _ = False
+sprawdzNumer ((Stop sid nazwa):xs) nr = if(sid == nr || sid == -1) then True
+										else sprawdzNumer xs nr
+										
+									
+pobierzGodzine = do
+	nr <- getStyledLine choiceStyle
+	let nrN = read nr::Int
+	if(nrN > 23 || nrN < 0) then do
+		putStrLn "Podaj prawidlowa godzine z przedzialu 0 - 23"
+		pobierzGodzine
+	else
+		return (nrN)
 		
+pobierzNumerStacji stacje = do
+		
+		nr <- getStyledLine choiceStyle
+		let nrN = read nr::Int
+		if((sprawdzNumer stacje nrN) == False) then do
+			putStrLn "Podaj prawidlowy numer stacji:"
+			pobierzNumerStacji stacje
+		else
+			return (nrN)
 		
 znajdzPolaczenie context = do
 		putStrLn "Wybierz stacje poczatkowa:"
-		let stacje = getTimetableStops(getTimetable context)
-		stop1 <- menu (stacjeMenu context stacje)	
-		let stop1n = read stop1::Int		
+		let stacje = getTimetableStops rozklad --getTimetableStops (getTimetable context)
+		printStops stacje
+		stop1n <- pobierzNumerStacji stacje
 		putStrLn "Wybierz stacje koncowa:"
-		stop2 <- menu (stacjeMenu context stacje)
-		let stop2n = read stop2::Int
+		printStops stacje
+		stop2n <- pobierzNumerStacji stacje
 		putStrLn "Podaj dzien wyjazdu:"
-		rDate <- menu(dniTygodnia)
-		putStrLn "Podaj godzine wyjazdu:"
-		rTime <- getStyledNumber choiceStyle		
-		let godzina = fromHourMinute rTime 0
+		printDays dniTygodnia				
+		day <- pobierzDzien dniTygodnia
+		putStrLn "Podaj godzine wyjazdu z przedzialu 0 - 23:"
+		hour <- pobierzGodzine	
+		let godzina = fromHourMinute hour 0
 		putStrLn "Podaj maksymalna ilosc przystankow:"
 		maxStops <- getStyledNumber choiceStyle
-		--wyswietlTrase(findQuickestRoute rozklad stop1n stop2n (Datetime (toEnum(ord(head(rDate))- 49)) godzina) maxStops)
+		wyswietlTrase(findQuickestRoute rozklad stop1n stop2n (Datetime (toEnum(day)) godzina) maxStops)
+		return context
 		mainMenu context
 				
 administracja context = do
@@ -192,47 +256,75 @@ administracja context = do
 		--mainMenu context
 		
 		
+getSequence [] max = max
+
+getSequence ((Stop sid nazwa):xs) max = do
+	if(sid > max) then 
+		getSequence xs sid
+	else
+		getSequence xs max
+		
 uiDodajStacje context = do
 	putStrLn "Podaj nazwe stacji: "
 	nazwa <- getStyledLine choiceStyle
-	let numer = sekwencja
-	let newStop = Stop sekwencja nazwa
-	
 	let tt = getTimetable context
 	let stops = getTimetableStops tt
+	let numer = getSequence stops 0
+	--let stopid = StopId numer
+	let newStop = Stop numer nazwa		
 	let newStops = stops ++ [newStop]
 	let newContext = setTimetable context (Timetable (getTimetableCourses(tt)) (getTimetableRoutes(tt)) newStops)
-	return newContext
-
+	putStrLn "Dodano stacje"
+	putStrLn nazwa
+	let numerStr = show numer
+	putStrLn numerStr
+	mainMenu newContext
 	
+	
+	
+
+usunStacje [] _ = []
+usunStacje ((Stop id name):xs) sid = do 
+				if(sid == id) then  ((usunStacje xs sid))
+				else  (Stop id name) : (usunStacje xs sid)
+
 uiUsunStacje context = do
 	putStrLn "Wybierz stacje do usuniecia:"
-	let tt = getTimetable context
-	let stops = getTimetableStops tt
-	stop <- menu (stacjeMenu context stops)	
-	let stopN = read stop::Int
-	let newStops = usunStacje stops stopN	
-	let newContext = setTimetable context (Timetable (getTimetableCourses(tt)) (getTimetableRoutes(tt)) newStops)
-	return newContext
-
+	let rozklad = getTimetable context
+	let stacje = getTimetableStops rozklad --getTimetableStops (getTimetable context)
+	printStops stacje
+	stop <- pobierzNumerStacji stacje
+	let newStops = usunStacje stacje stop
+	let newContext = setTimetable context (Timetable (getTimetableCourses(rozklad)) (getTimetableRoutes(rozklad)) newStops)
+	putStrLn "Usunieto stacje"
+	--let tt = getTimetable context
+	--let stops = getTimetableStops tt
+	--stop <- getStyledLine choiceStyle --menu (stacjeMenu context stops)	
+	--let stopN = read stop::Int
+	--let newStops = usunStacje stops stopN	
+	--let newContext = setTimetable context (Timetable (getTimetableCourses(tt)) (getTimetableRoutes(tt)) newStops)
+	--return context
+	mainMenu newContext
 	
 uiDodajPolaczenie context = do
-	--polaczenia <- uiDodajPolaczenieLoop []
-	let tt = getTimetable context
+	stacja <- pobierzNumerStacji stacje
+	polaczenia <- uiDodajPolaczenieLoop stacje [] context
+	
+	
+	--let tt = getTimetable context
 	
 	return context
 	
 	
-uiDodajPolaczenieLoop wybraneStacje context = do
-	putStrLn "Podaj stacje wchodzaca w sklad kursu, lub q, jesli koniec:"
-	stacja <- menu ((stacjeMenu context stacje) ++ [(Choice 'q' "Koniec" (Action (getChoiceValue  "q")))] )
-	let stacjaN = read stacja::Int	
-	if(stacja == "q") then
-		return wybraneStacje
-	else do
-		--temp <- (uiDodajPolaczenieLoop [(Stop stacjaN)] ) ++ IO wybraneStacje
-		return [] --temp
-	return []
+uiDodajPolaczenieLoop stacje wybraneStacje context = do
+	putStrLn "Podaj stacje wchodzaca w sklad kursu, lub -1, jesli koniec:"
+	let stacje = getTimetableStops rozklad
+	let st = 0
+	if(st /= -1) then do
+		let st = pobierzNumerStacji stacje
+		return uiDodajPolaczenieLoop stacje [st] ++ wybraneStacje context
+	else
+		wybraneStacje
 	
 	
 uiUsunPolaczenie context = do
@@ -240,8 +332,6 @@ uiUsunPolaczenie context = do
 
 	
 	
-usunStacje [] _ = []
-usunStacje ((Stop id name):xs) sid = if(sid == id) then  ((usunStacje xs sid))
-												   else  (Stop id name) : (usunStacje xs sid)
+
 	
 	
