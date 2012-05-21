@@ -172,6 +172,7 @@ setTimetableStops :: Timetable -> [Stop] -> Timetable
 setTimetableStops (Timetable courses routes _) stops = (Timetable courses routes stops)
 
 getTimetableStopNameById timetable id = getStopNameById id (getTimetableStops timetable)
+getTimetableRouteNameById timetable id = getRouteNameById id (getTimetableRoutes timetable)
 
 isValidStop timatable stopId = isJust $ find (\s -> getStopId s == stopId) $ getTimetableStops timatable
 
@@ -301,7 +302,6 @@ instance Ord TravelRoute where
 	compare TooFewStops TooFewStops = EQ
 	compare TooFewStops _ = LT
 	compare _ TooFewStops = LT
-	compare TooFewStops _ = EQ
 	compare (TravelRoute leg1) (TravelRoute leg2)
 		| diff < 0 = LT
 		| diff == 0 = EQ
